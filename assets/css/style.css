@@ -344,6 +344,7 @@ body {
   transition: background-color 0.3s;
   cursor: pointer;
   position: relative;
+  margin-bottom: 20px;
 }
 
 .album-card:hover {
