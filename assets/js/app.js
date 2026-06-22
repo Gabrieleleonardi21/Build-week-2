@@ -1,5 +1,6 @@
 // ============================================
-// SPOTIFY CLONE - LOGICA APPLICAZIONE
+// SPOTIFY CLONE — SHELL CONDIVISA (MPA)
+// Caricata su home.html, search.html, liked.html
 // ============================================
 
 // STATO APPLICAZIONE
@@ -13,10 +14,10 @@ const state = {
     isShuffle: false,
     isRepeat: false,
     volume: 0.7,
-    likedTracks: new Map(),   // Map<id, TrackObject> — persistito in localStorage
-    userPlaylists: [],         // [{ id, name, tracks: [] }] — persistito in localStorage
-    history: ['home'],
-    historyIndex: 0,
+    likedTracks: new Map(), // Map<id, TrackObject> — persistito in localStorage
+    userPlaylists: [],       // [{ id, name, tracks: [] }] — persistito in localStorage
+    currentPage: null,       // sub-pagina attiva (album-123, genre-Pop, profile, ecc.) — null = pagina default
+    lastSearchQuery: '',     // ultima query di ricerca, ripristinata al refresh della pagina search
 };
 
 // Elemento audio HTML5 per le anteprime 30s
@@ -25,7 +26,7 @@ const audio = document.getElementById('audioPlayer');
 // Registro globale dei track renderizzati — usato da toggleLike e playTrackInList
 const _trackRegistry = new Map();
 
-// Cache per le risposte API — evita chiamate duplicate
+// Cache per le risposte API — evita chiamate duplicate alla stessa risorsa
 const _cache = {};
 async function cached(key, fn) {
     if (_cache[key]) return _cache[key];
@@ -33,70 +34,24 @@ async function cached(key, fn) {
     return _cache[key];
 }
 
-// ============================================
-// AVVIO — auto-login se già loggato
-// ============================================
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('loginForm').addEventListener('submit', handleLogin);
-
-    const saved = localStorage.getItem('display_name');
-    if (saved) {
-        state.displayName = saved;
-        loadPersistedData();
-        document.getElementById('loginScreen').classList.add('d-none');
-        document.getElementById('mainApp').classList.remove('d-none');
-        initApp();
-    }
-});
-
-async function handleLogin(e) {
-    e.preventDefault();
-    const user = document.getElementById('loginUser').value.trim();
-    const errorEl = document.getElementById('loginEmailError');
-
-    // Valida: campo vuoto o, se contiene @, verifica formato email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmail = user.includes('@');
-    if (!user || (isEmail && !emailRegex.test(user))) {
-        errorEl.classList.remove('d-none');
-        return;
-    }
-    errorEl.classList.add('d-none');
-
-    // Mostra spinner sul bottone durante l'accesso
-    const btn = document.getElementById('loginSubmitBtn');
-    btn.disabled = true;
-    const spinner = make('span', 'spinner-border spinner-border-sm me-2');
-    spinner.setAttribute('role', 'status');
-    btn.replaceChildren(spinner, 'Accesso in corso...');
-
-    // Simulazione chiamata asincrona (sostituibile con fetch a un backend reale)
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    state.displayName = isEmail ? user.split('@')[0] : user;
-    localStorage.setItem('display_name', state.displayName);
-    loadPersistedData();
-    document.getElementById('loginScreen').classList.add('d-none');
-    document.getElementById('mainApp').classList.remove('d-none');
-    btn.disabled = false;
-    btn.textContent = 'ACCEDI';
-    initApp();
-}
+// Mappa delle pagine principali con i file HTML corrispondenti
+const _MAIN_PAGES = {
+    home: 'home.html',
+    search: 'search.html',
+    liked: 'liked.html',
+    library: 'home.html', // libreria assorbita dalla home nella MPA
+};
 
 // ============================================
 // PERSISTENZA localStorage
 // ============================================
 
 function loadPersistedData() {
-    // Liked tracks: array di [id, TrackObject]
     const liked = JSON.parse(localStorage.getItem('liked_tracks') || '[]');
     state.likedTracks = new Map(liked);
-
-    // User playlists: array di { id, name, tracks }
     state.userPlaylists = JSON.parse(localStorage.getItem('user_playlists') || '[]');
-
-    // Foto profilo
     state.profilePhoto = localStorage.getItem('profile_photo') || null;
+    state.displayName = localStorage.getItem('display_name');
 }
 
 function saveLikedTracks() {
@@ -108,33 +63,76 @@ function saveUserPlaylists() {
 }
 
 // ============================================
-// INIT APP
+// INIT SHELL
+// pageRenderer(container) — il renderer della pagina specifica (home/search/liked)
 // ============================================
-function initApp() {
+function initShell(pageRenderer) {
+    window._pageRenderer = pageRenderer;
     updateUserMenu();
     setupPlayer();
     setupNavigation();
     renderUserPlaylists();
-    showPage('home');
+    restorePlayerState();
+}
+
+// Ripristina l'UI del player dall'ultima sessione senza riavviare l'audio
+function restorePlayerState() {
+    const saved = localStorage.getItem('current_track');
+    if (!saved) return;
+    try {
+        const track = JSON.parse(saved);
+        state.currentTrack = track;
+        document.getElementById('playerTitle').textContent = track.title;
+        document.getElementById('playerArtist').textContent = track.artist;
+        const cover = document.getElementById('playerCover');
+        cover.src = track.cover;
+        cover.style.display = 'block';
+        document.getElementById('totalTime').textContent = formatDuration(track.duration);
+        updateLikeBtn();
+    } catch (_) {}
 }
 
 // ============================================
-// NAVIGAZIONE
+// NAVIGAZIONE MPA
 // ============================================
-function setupNavigation() {
+
+function navigateTo(page, pushHistory = true) {
+    // Pagine principali: naviga tramite href, il browser ricarica la pagina corretta
+    if (_MAIN_PAGES[page]) {
+        location.href = _MAIN_PAGES[page];
+        return;
+    }
+
+    // Sub-pagine (album, genre, playlist, profile): renderizzate nel contenuto attuale
+    if (pushHistory) history.pushState({ page }, '', '#' + encodeURIComponent(page));
+    showPage(page);
+    updateActiveNav(page);
+}
+
+// Aggiorna l'evidenziazione nella sidebar — solo per le pagine principali
+function updateActiveNav(page) {
+    if (!_MAIN_PAGES[page]) return;
     document.querySelectorAll('.nav-link[data-page]').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            navigateTo(link.dataset.page);
-        });
+        link.classList.toggle('active', link.dataset.page === page);
+    });
+}
+
+function setupNavigation() {
+    // Imposta l'active link in base al file corrente (ridondante ma robusto pre-JS)
+    const file = window.location.pathname.split('/').pop() || 'home.html';
+    const PAGE_FOR_FILE = { 'home.html': 'home', 'search.html': 'search', 'liked.html': 'liked' };
+    const activePage = PAGE_FOR_FILE[file] || 'home';
+    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+        link.classList.toggle('active', link.dataset.page === activePage);
     });
 
-    document.getElementById('backBtn').addEventListener('click', goBack);
-    document.getElementById('forwardBtn').addEventListener('click', goForward);
-    document.getElementById('logoBtn').addEventListener('click', () => navigateTo('home'));
+    // I link principali (Home, Cerca, Brani) usano href nativi — nessun listener JS
+    document.getElementById('backBtn').addEventListener('click', () => window.history.back());
+    document.getElementById('forwardBtn').addEventListener('click', () => window.history.forward());
+    document.getElementById('logoBtn').addEventListener('click', () => location.href = 'home.html');
     document.querySelector('.user-btn').addEventListener('click', () => navigateTo('profile'));
 
-    document.getElementById('createPlaylistBtn').addEventListener('click', (e) => {
+    document.getElementById('createPlaylistBtn').addEventListener('click', e => {
         e.preventDefault();
         new bootstrap.Modal(document.getElementById('playlistModal')).show();
     });
@@ -142,36 +140,23 @@ function setupNavigation() {
     document.getElementById('confirmPlaylistBtn').addEventListener('click', createPlaylist);
     document.getElementById('saveProfileBtn').addEventListener('click', saveProfile);
     document.getElementById('profilePhotoInput').addEventListener('change', previewProfilePhoto);
-}
 
-function navigateTo(page, pushHistory = true) {
-    if (pushHistory) {
-        state.history = state.history.slice(0, state.historyIndex + 1);
-        state.history.push(page);
-        state.historyIndex = state.history.length - 1;
-    }
-    showPage(page);
-    updateActiveNav(page);
-}
-
-function updateActiveNav(page) {
-    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
-        link.classList.toggle('active', link.dataset.page === page);
+    // Gestisce back/forward del browser per le sub-pagine navigate via pushState
+    window.addEventListener('popstate', async e => {
+        if (e.state && e.state.page) {
+            state.currentPage = e.state.page;
+            await showPage(e.state.page);
+        } else {
+            // Nessuno stato: torna alla pagina default del file corrente
+            state.currentPage = null;
+            if (window._pageRenderer) {
+                const content = document.getElementById('contentArea');
+                showLoading(content);
+                await window._pageRenderer(content);
+                content.parentElement.scrollTop = 0;
+            }
+        }
     });
-}
-
-function goBack() {
-    if (state.historyIndex > 0) {
-        state.historyIndex--;
-        showPage(state.history[state.historyIndex]);
-    }
-}
-
-function goForward() {
-    if (state.historyIndex < state.history.length - 1) {
-        state.historyIndex++;
-        showPage(state.history[state.historyIndex]);
-    }
 }
 
 // ============================================
@@ -179,24 +164,36 @@ function goForward() {
 // ============================================
 async function showPage(page) {
     const content = document.getElementById('contentArea');
+
+    // Pagine principali: usa il renderer registrato se siamo nel file giusto, altrimenti redirect
+    if (_MAIN_PAGES[page]) {
+        const file = window.location.pathname.split('/').pop() || 'home.html';
+        if (_MAIN_PAGES[page] !== file) {
+            location.href = _MAIN_PAGES[page];
+            return;
+        }
+        state.currentPage = null;
+        showLoading(content);
+        await window._pageRenderer(content);
+        content.parentElement.scrollTop = 0;
+        return;
+    }
+
+    // Sub-pagine: renderizzate dinamicamente nella pagina corrente
+    state.currentPage = page;
     showLoading(content);
 
     try {
-        if (page === 'home')                       await renderHome(content);
-        else if (page === 'search')                await renderSearch(content);
-        else if (page === 'library')               await renderLibrary(content);
-        else if (page === 'liked')                 renderLikedTracks(content);
-        else if (page === 'profile')               renderProfile(content);
-        else if (page.startsWith('album-'))        await renderAlbum(content, page.slice(6));
-        else if (page.startsWith('playlist-'))     await renderPlaylist(content, page.slice(9));
+        if (page === 'profile') renderProfile(content);
+        else if (page.startsWith('album-')) await renderAlbum(content, page.slice(6));
+        else if (page.startsWith('playlist-')) await renderPlaylist(content, page.slice(9));
         else if (page.startsWith('userplaylist-')) renderUserPlaylist(content, page.slice(13));
-        else if (page.startsWith('genre-'))        await renderGenre(content, page.slice(6));
+        else if (page.startsWith('genre-')) await renderGenre(content, page.slice(6));
     } catch (e) {
         const box = make('div', 'text-center mt-5 text-secondary');
         const icon = make('i', 'bi bi-exclamation-circle');
         icon.style.fontSize = '48px';
-        append(box,
-            icon,
+        append(box, icon,
             make('p', 'mt-3', 'Errore nel caricamento. Controlla la connessione e riprova.'),
             make('small', 'text-danger', e.message || String(e))
         );
@@ -215,8 +212,14 @@ function showLoading(container) {
     container.replaceChildren(box);
 }
 
-function refreshCurrentPage() {
-    showPage(state.history[state.historyIndex]);
+// Ri-renderizza la vista attuale: aggiorna indicatori di riproduzione e stato like
+async function refreshCurrentPage() {
+    const content = document.getElementById('contentArea');
+    if (state.currentPage) {
+        await showPage(state.currentPage);
+    } else if (window._pageRenderer) {
+        await window._pageRenderer(content);
+    }
 }
 
 // ============================================
@@ -235,144 +238,8 @@ async function getVirtualPlaylistCover(p) {
 }
 
 // ============================================
-// HOME
+// GENRE — condiviso tra home.js e search.js
 // ============================================
-async function renderHome(container) {
-    const hour = new Date().getHours();
-    let greeting = 'Buonasera';
-    if (hour < 12) greeting = 'Buongiorno';
-    else if (hour < 18) greeting = 'Buon pomeriggio';
-
-    // Fetch in parallelo: album popolari + cover di tutte le virtual playlist
-    const [rawAlbums, vpCovers] = await Promise.all([
-        cached('top_albums', () => itunesSearch('top hits', 'album', 8)),
-        Promise.all(VIRTUAL_PLAYLISTS.map(p => getVirtualPlaylistCover(p)))
-    ]);
-
-    const albums = rawAlbums.map(normalizeAlbum).filter(Boolean);
-    const uniqueAlbums = [...new Map(albums.map(a => [a.id, a])).values()];
-
-    // Mappa id → cover per accesso rapido
-    const coverMap = Object.fromEntries(VIRTUAL_PLAYLISTS.map((p, i) => [p.id, vpCovers[i]]));
-
-    // Quick-grid con le prime 6 playlist virtuali
-    const quickGrid = make('div', 'quick-grid');
-    VIRTUAL_PLAYLISTS.slice(0, 6).forEach(p => {
-        const card = make('div', 'quick-card');
-        card.addEventListener('click', () => navigateTo('playlist-' + p.id));
-
-        const img = make('img');
-        img.src = coverMap[p.id];
-        img.alt = p.title;
-
-        const overlay = make('div', 'play-overlay-quick');
-        overlay.addEventListener('click', (e) => { e.stopPropagation(); playPlaylistById(p.id); });
-        overlay.append(make('i', 'bi bi-play-fill'));
-
-        append(card, img, make('div', 'quick-card-title', p.title), overlay);
-        quickGrid.append(card);
-    });
-
-    // Card-grid playlist in evidenza
-    const playlistGrid = make('div', 'card-grid');
-    VIRTUAL_PLAYLISTS.forEach(p => {
-        playlistGrid.append(makeCard(coverMap[p.id], p.title, p.description, 'playlist-' + p.id));
-    });
-
-    const nodes = [
-        make('h1', 'greeting-title', `${greeting}, ${state.displayName}`),
-        quickGrid,
-        make('h2', 'section-title', 'Playlist in evidenza'),
-        playlistGrid,
-    ];
-
-    if (uniqueAlbums.length > 0) {
-        const albumGrid = make('div', 'card-grid');
-        uniqueAlbums.forEach(a => albumGrid.append(makeCard(a.cover, a.title, a.artist, 'album-' + a.id)));
-        nodes.push(make('h2', 'section-title', 'Album popolari'), albumGrid);
-    }
-
-    container.replaceChildren(...nodes);
-}
-
-// ============================================
-// RICERCA
-// ============================================
-async function renderSearch(container) {
-    const resultsDiv = make('div');
-    resultsDiv.id = 'searchResults';
-
-    const genreGrid = make('div', 'genre-grid');
-    GENRES.forEach(g => {
-        const card = make('div', 'genre-card', g.name);
-        card.style.background = g.color;
-        card.addEventListener('click', () => navigateTo('genre-' + encodeURIComponent(g.name)));
-        genreGrid.append(card);
-    });
-
-    const searchInput = make('input', 'search-input');
-    searchInput.type = 'text';
-    searchInput.id = 'searchInput';
-    searchInput.placeholder = 'Cosa vuoi ascoltare?';
-
-    container.replaceChildren(
-        append(make('div', 'search-bar-container'), searchInput),
-        resultsDiv,
-        make('h2', 'section-title', 'Sfoglia tutto'),
-        genreGrid
-    );
-
-    const input = document.getElementById('searchInput');
-    let debounceTimer;
-    input.addEventListener('input', (e) => {
-        clearTimeout(debounceTimer);
-        // Debounce 400ms per non sovraccaricare l'API
-        debounceTimer = setTimeout(() => performSearch(e.target.value), 400);
-    });
-    input.focus();
-}
-
-async function performSearch(query) {
-    const results = document.getElementById('searchResults');
-    if (!results) return;
-    if (!query.trim()) { results.replaceChildren(); return; }
-
-    const loading = make('div', 'text-secondary mt-3');
-    append(loading, make('div', 'spinner-border spinner-border-sm text-success me-2'), 'Ricerca in corso...');
-    results.replaceChildren(loading);
-
-    try {
-        const [songItems, albumItems] = await Promise.all([
-            itunesSearch(query, 'song', 20),
-            itunesSearch(query, 'album', 8),
-        ]);
-
-        const tracks = songItems.map(normalizeTrack).filter(Boolean);
-        const albums = albumItems.map(normalizeAlbum).filter(Boolean);
-        const uniqueAlbums = [...new Map(albums.map(a => [a.id, a])).values()];
-
-        const nodes = [];
-        if (uniqueAlbums.length > 0) {
-            const albumGrid = make('div', 'card-grid');
-            uniqueAlbums.forEach(a => albumGrid.append(makeCard(a.cover, a.title, a.artist, 'album-' + a.id)));
-            nodes.push(make('h2', 'section-title', 'Album'), albumGrid);
-        }
-        if (tracks.length > 0) {
-            nodes.push(make('h2', 'section-title', 'Brani'), renderTrackList(tracks));
-        }
-        if (nodes.length === 0) {
-            const empty = make('div', 'text-center text-secondary mt-5');
-            const icon = make('i', 'bi bi-search');
-            icon.style.fontSize = '48px';
-            append(empty, icon, make('p', 'mt-3', `Nessun risultato per "${query}"`));
-            nodes.push(empty);
-        }
-        results.replaceChildren(...nodes);
-    } catch (_) {
-        results.replaceChildren(make('p', 'text-secondary mt-3', 'Errore nella ricerca. Riprova.'));
-    }
-}
-
 async function renderGenre(container, genreName) {
     const genre = GENRES.find(g => g.name === decodeURIComponent(genreName));
     const term = genre ? genre.term : decodeURIComponent(genreName);
@@ -385,33 +252,6 @@ async function renderGenre(container, genreName) {
         make('h1', 'greeting-title', name),
         renderTrackList(tracks)
     );
-}
-
-// ============================================
-// LIBRERIA
-// ============================================
-async function renderLibrary(container) {
-    const nodes = [make('h1', 'greeting-title', 'La tua libreria')];
-
-    if (state.userPlaylists.length > 0) {
-        const grid = make('div', 'card-grid');
-        state.userPlaylists.forEach(p => {
-            const cover = createCover(p.name.substring(0, 2).toUpperCase(), '#1db954', '#191414');
-            grid.append(makeCard(cover, p.name, `${p.tracks.length} brani`, 'userplaylist-' + p.id));
-        });
-        nodes.push(make('h2', 'section-title', 'Le tue playlist'), grid);
-    }
-
-    const featuredPlaylists = VIRTUAL_PLAYLISTS.slice(0, 4);
-    const featuredCovers = await Promise.all(featuredPlaylists.map(p => getVirtualPlaylistCover(p)));
-
-    const featuredGrid = make('div', 'card-grid');
-    featuredPlaylists.forEach((p, i) => {
-        featuredGrid.append(makeCard(featuredCovers[i], p.title, p.description, 'playlist-' + p.id));
-    });
-    nodes.push(make('h2', 'section-title', 'Playlist in evidenza'), featuredGrid);
-
-    container.replaceChildren(...nodes);
 }
 
 // ============================================
@@ -455,7 +295,7 @@ async function renderPlaylist(container, playlistId) {
 
     const [cover, rawTracks] = await Promise.all([
         getVirtualPlaylistCover(vp),
-        cached('vptracks_' + playlistId, () => itunesGetPlaylistTracks(playlistId))
+        cached('vptracks_' + playlistId, () => itunesGetPlaylistTracks(playlistId)),
     ]);
     const tracks = rawTracks.map(normalizeTrack).filter(Boolean);
     tracks.forEach(t => _trackRegistry.set(t.id, t));
@@ -499,37 +339,6 @@ function renderUserPlaylist(container, playlistId) {
     );
 }
 
-function renderLikedTracks(container) {
-    const likedList = Array.from(state.likedTracks.values());
-    likedList.forEach(t => _trackRegistry.set(t.id, t));
-
-    const meta = make('div', 'playlist-meta');
-    append(meta, make('strong', '', state.displayName), ` • ${likedList.length} brani`);
-
-    const nodes = [
-        makePlaylistHeader(null, 'Playlist', 'Brani che ti piacciono', meta),
-    ];
-
-    if (likedList.length > 0) {
-        const playBtn = make('button', 'btn-play-large');
-        playBtn.addEventListener('click', () => playTracksList(likedList));
-        playBtn.append(make('i', 'bi bi-play-fill'));
-
-        nodes.push(
-            append(make('div', 'playlist-actions-row'), playBtn),
-            renderTrackList(likedList)
-        );
-    } else {
-        const empty = make('div', 'text-center mt-5 text-secondary');
-        const icon = make('i', 'bi bi-heart');
-        icon.style.fontSize = '48px';
-        append(empty, icon, make('p', 'mt-3', 'Non hai ancora salvato brani. Clicca sul cuore ♥ per aggiungerli.'));
-        nodes.push(empty);
-    }
-
-    container.replaceChildren(...nodes);
-}
-
 // ============================================
 // PROFILO UTENTE
 // ============================================
@@ -553,7 +362,6 @@ function renderProfile(container) {
     }
 
     const metaText = `${state.userPlaylists.length} playlist • ${likedCount} brani salvati`;
-
     const headerInfo = make('div', 'playlist-header-info');
     append(headerInfo,
         make('div', 'playlist-type', 'Profilo'),
@@ -572,7 +380,6 @@ function renderProfile(container) {
     logoutBtn.append(make('i', 'bi bi-box-arrow-right'));
 
     const actionsRow = append(make('div', 'playlist-actions-row'), editBtn, logoutBtn);
-
     const nodes = [header, actionsRow];
 
     if (state.userPlaylists.length > 0) {
@@ -590,14 +397,10 @@ function renderProfile(container) {
 function logout() {
     localStorage.removeItem('display_name');
     localStorage.removeItem('profile_photo');
-    state.displayName = null;
-    state.profilePhoto = null;
-    state.isPlaying = false;
+    localStorage.removeItem('current_track');
     audio.pause();
     audio.src = '';
-    document.getElementById('mainApp').classList.add('d-none');
-    document.getElementById('loginScreen').classList.remove('d-none');
-    document.getElementById('loginForm').reset();
+    location.href = 'login.html';
 }
 
 // ============================================
@@ -652,7 +455,10 @@ function previewProfilePhoto(e) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => { tempProfilePhoto = ev.target.result; updatePhotoPreview(tempProfilePhoto); };
+    reader.onload = ev => {
+        tempProfilePhoto = ev.target.result;
+        updatePhotoPreview(tempProfilePhoto);
+    };
     reader.readAsDataURL(file);
 }
 
@@ -673,7 +479,7 @@ function saveProfile() {
 // ============================================
 // HELPER: intestazione playlist/album/profilo
 // coverSrc = null → riquadro gradiente con cuore (liked tracks)
-// I nodi meta vengono passati come argomenti finali e aggiunti dopo.
+// I nodi meta vengono passati come argomenti variadici e aggiunti dopo il titolo
 // ============================================
 function makePlaylistHeader(coverSrc, type, title, ...metaNodes) {
     let coverEl;
@@ -690,11 +496,7 @@ function makePlaylistHeader(coverSrc, type, title, ...metaNodes) {
     }
 
     const info = make('div', 'playlist-header-info');
-    append(info,
-        make('div', 'playlist-type', type),
-        make('div', 'playlist-name-large', title),
-        ...metaNodes
-    );
+    append(info, make('div', 'playlist-type', type), make('div', 'playlist-name-large', title), ...metaNodes);
 
     return append(make('div', 'playlist-header'), coverEl, info);
 }
@@ -711,15 +513,13 @@ function makeCard(cover, title, description, page) {
     img.alt = title;
 
     const overlay = make('div', 'play-overlay');
-    overlay.addEventListener('click', (e) => { e.stopPropagation(); quickPlay(page); });
+    overlay.addEventListener('click', e => {
+        e.stopPropagation();
+        quickPlay(page);
+    });
     overlay.append(make('i', 'bi bi-play-fill'));
 
-    append(card,
-        img,
-        make('div', 'album-title', title),
-        make('div', 'album-description', description),
-        overlay
-    );
+    append(card, img, make('div', 'album-title', title), make('div', 'album-description', description), overlay);
     return card;
 }
 
@@ -755,7 +555,6 @@ function makeTrackRow(track, index, ids, showAlbumCol) {
         numDiv.textContent = String(index + 1);
     }
 
-    // Titolo con icona muto opzionale
     const nameDiv = make('div', 'track-name', track.title);
     if (!track.previewUrl) {
         const mute = make('span', '', '🔇');
@@ -764,14 +563,15 @@ function makeTrackRow(track, index, ids, showAlbumCol) {
         nameDiv.append(mute);
     }
 
-    // Bottone like
     const likeIcon = make('i', `bi bi-heart${isLiked ? '-fill' : ''}`);
     if (isLiked) likeIcon.style.color = 'var(--spotify-green)';
     const likeBtn = make('button', 'btn-icon');
-    likeBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleLike(track.id); });
+    likeBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        toggleLike(track.id);
+    });
     likeBtn.append(likeIcon);
 
-    // Immagine + testo info
     const cover = make('img');
     cover.src = track.cover;
     cover.alt = track.title;
@@ -782,7 +582,6 @@ function makeTrackRow(track, index, ids, showAlbumCol) {
     const info = make('div', 'track-info');
     append(info, cover, infoText);
 
-    // Riga completa
     const row = make('div', `track-row${isPlaying ? ' playing' : ''}`);
     append(row,
         numDiv,
@@ -833,38 +632,40 @@ function setupPlayer() {
     });
 
     // Seek sulla progress bar
-    document.getElementById('progressContainer').addEventListener('click', (e) => {
+    document.getElementById('progressContainer').addEventListener('click', e => {
         if (!state.currentTrack || !audio.duration) return;
         const rect = e.currentTarget.getBoundingClientRect();
         audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
     });
 
     // Controllo volume
-    document.getElementById('volumeContainer').addEventListener('click', (e) => {
+    document.getElementById('volumeContainer').addEventListener('click', e => {
         const rect = e.currentTarget.getBoundingClientRect();
         state.volume = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         audio.volume = state.volume;
-        document.getElementById('volumeFill').style.width = (state.volume * 100) + '%';
+        document.getElementById('volumeFill').style.width = state.volume * 100 + '%';
         updateVolumeIcon();
     });
 
     document.getElementById('volumeBtn').addEventListener('click', () => {
         state.volume = state.volume > 0 ? 0 : 0.7;
         audio.volume = state.volume;
-        document.getElementById('volumeFill').style.width = (state.volume * 100) + '%';
+        document.getElementById('volumeFill').style.width = state.volume * 100 + '%';
         updateVolumeIcon();
     });
 
     // Aggiorna la barra di avanzamento in tempo reale
     audio.addEventListener('timeupdate', () => {
         if (!audio.duration) return;
-        document.getElementById('progressFill').style.width = (audio.currentTime / audio.duration * 100) + '%';
+        document.getElementById('progressFill').style.width = (audio.currentTime / audio.duration) * 100 + '%';
         document.getElementById('currentTime').textContent = formatDuration(Math.floor(audio.currentTime));
     });
 
     audio.addEventListener('ended', () => {
-        if (state.isRepeat) { audio.currentTime = 0; audio.play(); }
-        else nextTrack();
+        if (state.isRepeat) {
+            audio.currentTime = 0;
+            audio.play();
+        } else nextTrack();
     });
 
     audio.volume = state.volume;
@@ -883,6 +684,9 @@ function playTrack(track) {
     document.getElementById('totalTime').textContent = formatDuration(track.duration);
     document.getElementById('progressFill').style.width = '0%';
     document.getElementById('currentTime').textContent = '0:00';
+
+    // Salva il brano corrente per ripristinare l'UI player al cambio di pagina
+    localStorage.setItem('current_track', JSON.stringify(track));
 
     if (track.previewUrl) {
         audio.src = track.previewUrl;
@@ -924,7 +728,11 @@ function togglePlay() {
         state.isPlaying = false;
     } else if (state.currentTrack.previewUrl) {
         if (!audio.src) audio.src = state.currentTrack.previewUrl;
-        audio.play().then(() => { state.isPlaying = true; updatePlayButton(); refreshCurrentPage(); }).catch(() => {});
+        audio.play().then(() => {
+            state.isPlaying = true;
+            updatePlayButton();
+            refreshCurrentPage();
+        }).catch(() => {});
         return;
     }
     updatePlayButton();
@@ -937,7 +745,10 @@ function updatePlayButton() {
 
 function prevTrack() {
     if (state.currentPlaylist.length === 0) return;
-    if (audio.currentTime > 3) { audio.currentTime = 0; return; }
+    if (audio.currentTime > 3) {
+        audio.currentTime = 0;
+        return;
+    }
     state.currentIndex = (state.currentIndex - 1 + state.currentPlaylist.length) % state.currentPlaylist.length;
     playTrack(state.currentPlaylist[state.currentIndex]);
 }
@@ -962,9 +773,9 @@ function toggleRepeat() {
 
 function updateVolumeIcon() {
     const icon = document.querySelector('#volumeBtn i');
-    if (state.volume === 0)       icon.className = 'bi bi-volume-mute-fill';
-    else if (state.volume < 0.5)  icon.className = 'bi bi-volume-down-fill';
-    else                          icon.className = 'bi bi-volume-up-fill';
+    if (state.volume === 0) icon.className = 'bi bi-volume-mute-fill';
+    else if (state.volume < 0.5) icon.className = 'bi bi-volume-down-fill';
+    else icon.className = 'bi bi-volume-up-fill';
 }
 
 // ============================================
@@ -975,8 +786,8 @@ function toggleLike(trackId) {
         state.likedTracks.delete(trackId);
     } else {
         // Cerca il track nel registry o nel player corrente
-        const track = _trackRegistry.get(trackId)
-            || (state.currentTrack?.id === trackId ? state.currentTrack : null);
+        const track = _trackRegistry.get(trackId) ||
+            (state.currentTrack?.id === trackId ? state.currentTrack : null);
         if (track) state.likedTracks.set(trackId, track);
     }
     saveLikedTracks();
@@ -1007,13 +818,11 @@ function createPlaylist() {
 
 function renderUserPlaylists() {
     const container = document.getElementById('userPlaylists');
-    container.replaceChildren(
-        ...state.userPlaylists.map(p => {
-            const a = document.createElement('a');
-            a.className = 'user-playlist-item';
-            a.textContent = p.name;
-            a.onclick = () => navigateTo('userplaylist-' + p.id);
-            return a;
-        })
-    );
+    container.replaceChildren(...state.userPlaylists.map(p => {
+        const a = document.createElement('a');
+        a.className = 'user-playlist-item';
+        a.textContent = p.name;
+        a.addEventListener('click', () => navigateTo('userplaylist-' + p.id));
+        return a;
+    }));
 }

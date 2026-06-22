@@ -3,66 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spotify Clone</title>
-    <!-- Bootstrap CSS -->
+    <title>Spotify Clone – Brani preferiti</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- CSS personalizzato -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
 
-    <!-- SCHERMATA DI LOGIN -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-box">
-            <div class="text-center mb-4">
-                <i class="bi bi-spotify spotify-logo"></i>
-                <h1 class="login-title">Spotify</h1>
-            </div>
-            <h2 class="text-center text-white mb-4">Accedi a Spotify</h2>
-            <form id="loginForm">
-                <div class="mb-3">
-                    <label class="form-label text-white">Email o nome utente</label>
-                    <input type="text" class="form-control login-input" id="loginUser" placeholder="Email o nome utente">
-                    <div id="loginEmailError" class="text-danger small mt-1 d-none">Inserisci un'email o un nome utente valido.</div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-white">Password</label>
-                    <input type="password" class="form-control login-input" id="loginPass" placeholder="Password">
-                </div>
-                <button type="submit" class="btn btn-spotify w-100 mb-3" id="loginSubmitBtn">ACCEDI</button>
-                <hr class="text-secondary">
-                <div class="text-center text-white-50">
-                    Non hai un account? <a href="#" class="text-white">Iscriviti a Spotify</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- APP PRINCIPALE -->
-    <div id="mainApp" class="app-container d-none">
+    <div class="app-container">
 
         <!-- SIDEBAR -->
         <aside class="sidebar">
-            <div class="logo-container" id="logoBtn" style="cursor: pointer;" title="Vai alla Home">
+            <div class="logo-container" id="logoBtn" style="cursor:pointer;" title="Vai alla Home">
                 <i class="bi bi-spotify"></i>
                 <span>Spotify</span>
             </div>
 
             <nav class="main-nav">
-                <a href="#" class="nav-link active" data-page="home">
+                <a href="home.html" class="nav-link" data-page="home">
                     <i class="bi bi-house-door-fill"></i>
                     <span>Home</span>
                 </a>
-                <a href="#" class="nav-link" data-page="search">
+                <a href="search.html" class="nav-link" data-page="search">
                     <i class="bi bi-search"></i>
                     <span>Cerca</span>
                 </a>
-                <a href="#" class="nav-link" data-page="library">
+                <a href="home.html" class="nav-link" data-page="library">
                     <i class="bi bi-music-note-list"></i>
                     <span>La tua libreria</span>
                 </a>
@@ -73,17 +41,14 @@
                     <div class="action-icon"><i class="bi bi-plus-lg"></i></div>
                     <span>Crea playlist</span>
                 </a>
-                <a href="#" class="nav-link" data-page="liked">
+                <a href="liked.html" class="nav-link active" data-page="liked">
                     <div class="action-icon liked-icon"><i class="bi bi-heart-fill"></i></div>
                     <span>Brani che ti piacciono</span>
                 </a>
             </div>
 
             <hr class="sidebar-divider">
-
-            <div class="user-playlists" id="userPlaylists">
-                <!-- Playlist generate da JS -->
-            </div>
+            <div class="user-playlists" id="userPlaylists"></div>
         </aside>
 
         <!-- AREA PRINCIPALE -->
@@ -101,10 +66,7 @@
                     </button>
                 </div>
             </header>
-
-            <div class="content-area" id="contentArea">
-                <!-- Contenuto dinamico -->
-            </div>
+            <div class="content-area" id="contentArea"></div>
         </main>
 
         <!-- PLAYER IN BASSO -->
@@ -140,7 +102,7 @@
                 <button class="btn-icon"><i class="bi bi-pc-display"></i></button>
                 <button class="btn-icon" id="volumeBtn"><i class="bi bi-volume-up-fill"></i></button>
                 <div class="volume-bar-container" id="volumeContainer">
-                    <div class="volume-bar-fill" id="volumeFill" style="width: 70%;"></div>
+                    <div class="volume-bar-fill" id="volumeFill" style="width:70%;"></div>
                 </div>
             </div>
         </footer>
@@ -194,16 +156,12 @@
         </div>
     </div>
 
-    <!-- Player audio nascosto per le anteprime 30s -->
     <audio id="audioPlayer" preload="none"></audio>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Utility cover SVG e formatDuration -->
-    <script src="data.js"></script>
-    <!-- iTunes Search API (zero configurazione) -->
-    <script src="itunes-api.js"></script>
-    <!-- Logica applicazione -->
-    <script src="app.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/itunes-api.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/liked.js"></script>
 </body>
 </html>
