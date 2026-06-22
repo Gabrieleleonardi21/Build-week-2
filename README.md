@@ -98,7 +98,7 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 
 ---
 
-## Architettura
+## 🏛️ Architettura
 
 Il progetto è una **multi-page application** con un file HTML per ogni schermata. La logica condivisa (player, like, playlist utente) vive in `app.js`; ogni pagina ha il proprio file JS dedicato.
 
