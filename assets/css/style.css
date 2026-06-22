@@ -805,15 +805,16 @@ body {
 }
 
 .volume-bar-container {
+  position: relative;
   width: 100px;
   height: 4px;
   background-color: #4f4f4f;
   border-radius: 2px;
   cursor: pointer;
-  overflow: hidden;
 }
 
 .volume-bar-fill {
+  position: relative;
   height: 100%;
   background-color: var(--spotify-light-gray);
   border-radius: 2px;
@@ -821,6 +822,34 @@ body {
 
 .volume-bar-container:hover .volume-bar-fill {
   background-color: var(--spotify-green);
+}
+
+.volume-bar-thumb {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  background-color: #fff;
+  border-radius: 50%;
+  transform: translate(50%, -50%) scale(0);
+  transition: transform 0.1s ease;
+}
+
+.volume-bar-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: rgba(250, 250, 250, 0.543);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.volume-bar-container:hover .volume-bar-thumb,
+.volume-bar-container.dragging .volume-bar-thumb {
+  transform: translate(50%, -50%) scale(1);
 }
 
 /* ============================================
