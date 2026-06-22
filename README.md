@@ -1,10 +1,10 @@
-# Spotify Clone
+# 🎶 Spotify Clone
 
 Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca musicale in tempo reale, il tutto con puro HTML, CSS e JavaScript. Nessun framework da installare, nessuna registrazione richiesta — i brani, gli album e le anteprime audio arrivano direttamente dalla iTunes Search API di Apple.
 
 ---
 
-## Demo rapida
+## 💻 Demo rapida
 
 1. Apri `login.html` in un browser moderno (o usa un server locale — vedi sotto)
 2. Inserisci qualsiasi nome utente e clicca **ACCEDI**
@@ -15,7 +15,7 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 
 ---
 
-## Funzionalità
+## 📋 Funzionalità
 
 ### Autenticazione
 
@@ -62,7 +62,7 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 
 ---
 
-## Struttura del progetto
+## 🧾 Struttura del progetto
 
 ```
 ├── login.html           Schermata di accesso
@@ -84,7 +84,7 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 
 ---
 
-## Tecnologie
+## 📱 Tecnologie
 
 | Tecnologia                       | Utilizzo                                  |
 | -------------------------------- | ----------------------------------------- |
@@ -116,7 +116,7 @@ Oggetto `chiave → Promise` in memoria che evita di ripetere la stessa chiamata
 
 ---
 
-## Limiti tecnici
+## 🧰 Limiti tecnici
 
 - **Anteprime da 30 s**: iTunes fornisce solo preview; le tracce senza preview mostrano 🔇
 - **Nessun backend**: utenti, password e playlist esistono solo nel `localStorage` del browser
@@ -125,7 +125,7 @@ Oggetto `chiave → Promise` in memoria che evita di ripetere la stessa chiamata
 
 ---
 
-## Miglioramenti futuri
+## 🪛 Miglioramenti futuri
 
 - [ ] Integrazione Spotify Web API con OAuth PKCE (riproduzione completa)
 - [ ] "Aggiungi a playlist" dal menu contestuale di ogni brano
@@ -138,7 +138,7 @@ Oggetto `chiave → Promise` in memoria che evita di ripetere la stessa chiamata
 
 ---
 
-## Crediti
+## 📌 Crediti
 
 - Dati musicali: [iTunes Search API](https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/) (Apple Inc.)
 - UI ispirata a: Spotify Web Player
