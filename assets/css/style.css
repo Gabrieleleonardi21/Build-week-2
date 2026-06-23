@@ -615,6 +615,69 @@ body {
   text-align: right;
 }
 
+/* Cella azioni della riga: aggiungi / like / rimuovi */
+.track-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Bottone "tre puntini": nascosto su desktop, attivo solo su mobile */
+.track-more-btn {
+  display: none;
+}
+
+/* Lista playlist nel modale "aggiungi a playlist" */
+.add-playlist-list {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.add-playlist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--spotify-white);
+  padding: 10px 8px;
+  border-radius: 4px;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.add-playlist-item:hover {
+  background-color: var(--spotify-gray);
+}
+
+.add-playlist-item:disabled {
+  color: var(--spotify-light-gray);
+  cursor: default;
+}
+
+.add-playlist-item:disabled i {
+  color: var(--spotify-green);
+}
+
+/* Toast di conferma */
+.toast-msg {
+  position: fixed;
+  bottom: 110px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--spotify-green);
+  color: var(--spotify-black);
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-weight: 700;
+  z-index: 9999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
 /* HEADER PLAYLIST/ALBUM */
 .playlist-header {
   display: flex;
@@ -929,8 +992,10 @@ body {
   }
   .tracklist-header,
   .track-row {
-    grid-template-columns: 40px 1fr 60px;
+    grid-template-columns: 32px 1fr auto auto;
+    gap: 8px;
   }
+  /* nasconde la colonna Album */
   .tracklist-header > :nth-child(3),
   .track-row > :nth-child(3) {
     display: none;
@@ -1052,5 +1117,13 @@ body {
   /* Spazio in fondo al contenuto così l'ultimo elemento non finisce dietro al player */
   .content-area {
     padding-bottom: 96px;
+  }
+
+  /* Tracklist: una sola icona "tre puntini" al posto di add/like/rimuovi */
+  .track-actions > .btn-icon {
+    display: none;
+  }
+  .track-actions > .track-more-btn {
+    display: inline-flex;
   }
 }
