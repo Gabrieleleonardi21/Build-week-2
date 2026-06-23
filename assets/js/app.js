@@ -763,6 +763,10 @@ function setupPlayer() {
     volumeHover.style.width = pct * 100 + "%";
   });
 
+  volumeContainer.addEventListener("mouseleave", () => {
+    volumeHover.style.width = "0%";
+  });
+
   volumeContainer.addEventListener("mousedown", (e) => {
     setVolumeFromEvent(e);
     volumeContainer.classList.add("dragging");
