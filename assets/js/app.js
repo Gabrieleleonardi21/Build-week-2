@@ -26,6 +26,10 @@ const audio = document.getElementById("audioPlayer");
 // Registro globale dei track renderizzati — usato da toggleLike e playTrackInList
 const _trackRegistry = new Map();
 
+// Picture-in-Picture: finestra remota e cache dei suoi riferimenti DOM (null = PiP chiusa)
+let pipWindow = null;
+let pipEls = null;
+
 // Cache per le risposte API — evita chiamate duplicate alla stessa risorsa
 const _cache = {};
 async function cached(key, fn) {
@@ -75,6 +79,7 @@ function initShell(pageRenderer) {
   window._pageRenderer = pageRenderer;
   updateUserMenu();
   setupPlayer();
+  setupPip();
   setupNavigation();
   renderUserPlaylists();
   restorePlayerState();
@@ -775,6 +780,7 @@ function setupPlayer() {
     document.getElementById("volumeFill").style.width =
       state.volume * 100 + "%";
     updateVolumeIcon();
+    refreshPipUI();
   };
 
   const volumeHover = document.getElementById("volumeHover");
@@ -810,6 +816,7 @@ function setupPlayer() {
     document.getElementById("volumeFill").style.width =
       state.volume * 100 + "%";
     updateVolumeIcon();
+    refreshPipUI();
   });
 
   // Aggiorna la barra di avanzamento in tempo reale
@@ -820,6 +827,13 @@ function setupPlayer() {
     document.getElementById("currentTime").textContent = formatDuration(
       Math.floor(audio.currentTime),
     );
+    if (pipWindow && pipEls) {
+      pipEls.progressFill.style.width =
+        (audio.currentTime / audio.duration) * 100 + "%";
+      pipEls.currentTime.textContent = formatDuration(
+        Math.floor(audio.currentTime),
+      );
+    }
   });
 
   audio.addEventListener("ended", () => {
@@ -830,6 +844,218 @@ function setupPlayer() {
   });
 
   audio.volume = state.volume;
+}
+
+// ============================================
+// PICTURE-IN-PICTURE — mini-player flottante
+// Visibile anche cambiando scheda del browser (Document PiP API, solo Chrome/Edge 116+)
+// ============================================
+
+function isPipSupported() {
+  return "documentPictureInPicture" in window;
+}
+
+function setupPip() {
+  if (!isPipSupported()) return; // Firefox/Safari: nessun PiP, nessun errore
+  document.addEventListener("visibilitychange", handlePipVisibilityChange);
+}
+
+async function handlePipVisibilityChange() {
+  if (document.hidden) {
+    if (state.isPlaying && state.currentTrack && !pipWindow) {
+      await openPipWindow();
+    }
+  } else if (pipWindow) {
+    pipWindow.close();
+  }
+}
+
+async function openPipWindow() {
+  try {
+    pipWindow = await documentPictureInPicture.requestWindow({
+      width: 360,
+      height: 300,
+    });
+  } catch (_) {
+    pipWindow = null;
+    return;
+  }
+
+  pipWindow.document.documentElement.classList.add("pip-mode");
+  // Clona tutti i <link rel="stylesheet"> della pagina principale (Bootstrap, Bootstrap Icons,
+  // Google Fonts, style.css) cosi' pulsanti e icone nella PiP risultano identici a quelli del player
+  document.querySelectorAll('link[rel="stylesheet"]').forEach((original) => {
+    const clone = pipWindow.document.createElement("link");
+    clone.rel = "stylesheet";
+    clone.href = original.href;
+    pipWindow.document.head.append(clone);
+  });
+
+  buildPipDocument(pipWindow.document.body);
+  refreshPipUI();
+
+  pipWindow.addEventListener("pagehide", () => {
+    pipWindow = null;
+    pipEls = null;
+  });
+}
+
+function buildPipDocument(container) {
+  const cover = make("img", "pip-cover");
+
+  const title = make("div", "track-title");
+  const artist = make("div", "track-artist");
+  const trackInfo = append(make("div", "pip-track-info"), title, artist);
+
+  const likeBtn = make("button", "btn-icon");
+  const likeIcon = make("i", "bi bi-heart");
+  likeBtn.append(likeIcon);
+  likeBtn.addEventListener("click", () => {
+    if (state.currentTrack) toggleLike(state.currentTrack.id);
+  });
+
+  const prevBtn = make("button", "btn-icon");
+  prevBtn.append(make("i", "bi bi-skip-start-fill"));
+  prevBtn.addEventListener("click", prevTrack);
+
+  const playBtn = make("button", "btn-play");
+  playBtn.append(make("i", "bi bi-play-fill"));
+  playBtn.addEventListener("click", togglePlay);
+
+  const nextBtn = make("button", "btn-icon");
+  nextBtn.append(make("i", "bi bi-skip-end-fill"));
+  nextBtn.addEventListener("click", nextTrack);
+
+  const controls = append(
+    make("div", "pip-controls"),
+    prevBtn,
+    playBtn,
+    nextBtn,
+  );
+
+  const currentTime = make("span", "time-text", "0:00");
+  const progressContainer = make("div", "progress-bar-container");
+  const progressFill = make("div", "progress-bar-fill");
+  progressContainer.append(progressFill);
+  const totalTime = make("span", "time-text", "0:00");
+  const progress = append(
+    make("div", "pip-progress"),
+    currentTime,
+    progressContainer,
+    totalTime,
+  );
+
+  const volumeContainer = make("div", "volume-bar-container");
+  const volumeHover = make("div", "volume-bar-hover");
+  const volumeFill = make("div", "volume-bar-fill");
+  const volumeThumb = make("div", "volume-bar-thumb");
+  volumeFill.append(volumeThumb);
+  volumeContainer.append(volumeHover, volumeFill);
+  const bottomRow = append(
+    make("div", "pip-bottom-row"),
+    likeBtn,
+    volumeContainer,
+  );
+
+  container.replaceChildren(
+    append(
+      make("div", "pip-player"),
+      cover,
+      trackInfo,
+      controls,
+      progress,
+      bottomRow,
+    ),
+  );
+
+  pipEls = {
+    cover,
+    title,
+    artist,
+    likeBtn,
+    likeIcon,
+    playBtn,
+    currentTime,
+    progressContainer,
+    progressFill,
+    totalTime,
+    volumeContainer,
+    volumeHover,
+    volumeFill,
+  };
+
+  // Seek: stesso pattern click-to-seek della progress bar principale
+  progressContainer.addEventListener("click", (e) => {
+    if (!state.currentTrack || !audio.duration) return;
+    const rect = progressContainer.getBoundingClientRect();
+    audio.currentTime =
+      ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
+
+  // Volume: stesso pattern drag/hover dello slider principale, ma sul document della PiP
+  const setVolumeFromEvent = (e) => {
+    const rect = volumeContainer.getBoundingClientRect();
+    state.volume = Math.max(
+      0,
+      Math.min(1, (e.clientX - rect.left) / rect.width),
+    );
+    audio.volume = state.volume;
+    volumeFill.style.width = state.volume * 100 + "%";
+    updateVolumeIcon();
+    syncMainVolumeUI();
+  };
+
+  volumeContainer.addEventListener("mousemove", (e) => {
+    if (volumeContainer.classList.contains("dragging")) return;
+    const rect = volumeContainer.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    volumeHover.style.width = pct * 100 + "%";
+  });
+
+  volumeContainer.addEventListener("mouseleave", () => {
+    volumeHover.style.width = "0%";
+  });
+
+  volumeContainer.addEventListener("mousedown", (e) => {
+    setVolumeFromEvent(e);
+    volumeContainer.classList.add("dragging");
+
+    const onMouseMove = (moveEvent) => setVolumeFromEvent(moveEvent);
+    const onMouseUp = () => {
+      volumeContainer.classList.remove("dragging");
+      pipWindow.document.removeEventListener("mousemove", onMouseMove);
+      pipWindow.document.removeEventListener("mouseup", onMouseUp);
+    };
+
+    pipWindow.document.addEventListener("mousemove", onMouseMove);
+    pipWindow.document.addEventListener("mouseup", onMouseUp);
+  });
+}
+
+// Sincronizza la UI del player principale dopo un cambio di volume avvenuto dentro la PiP
+function syncMainVolumeUI() {
+  const fill = document.getElementById("volumeFill");
+  if (fill) fill.style.width = state.volume * 100 + "%";
+  updateVolumeIcon();
+}
+
+// Sincronizza la finestra PiP con lo stato corrente (cover, titolo, play/pause, like, volume)
+function refreshPipUI() {
+  if (!pipWindow || !pipEls) return;
+  const t = state.currentTrack;
+  if (t) {
+    pipEls.cover.src = t.cover;
+    pipEls.title.textContent = t.title;
+    pipEls.artist.textContent = t.artist;
+    pipEls.totalTime.textContent = formatDuration(t.duration);
+  }
+  pipEls.playBtn.querySelector("i").className = state.isPlaying
+    ? "bi bi-pause-fill"
+    : "bi bi-play-fill";
+  const liked = t && state.likedTracks.has(t.id);
+  pipEls.likeIcon.className = liked ? "bi bi-heart-fill" : "bi bi-heart";
+  pipEls.likeIcon.style.color = liked ? "var(--spotify-green)" : "";
+  pipEls.volumeFill.style.width = state.volume * 100 + "%";
 }
 
 function playTrack(track) {
@@ -869,6 +1095,7 @@ function playTrack(track) {
   }
 
   updateLikeBtn();
+  refreshPipUI();
 }
 
 function playTracksList(trackList) {
@@ -912,6 +1139,7 @@ function updatePlayButton() {
   document.querySelector("#playBtn i").className = state.isPlaying
     ? "bi bi-pause-fill"
     : "bi bi-play-fill";
+  refreshPipUI();
 }
 
 function prevTrack() {
@@ -979,6 +1207,7 @@ function updateLikeBtn() {
   const icon = document.querySelector("#likeBtn i");
   icon.className = liked ? "bi bi-heart-fill" : "bi bi-heart";
   icon.style.color = liked ? "var(--spotify-green)" : "";
+  refreshPipUI();
 }
 
 // ============================================
