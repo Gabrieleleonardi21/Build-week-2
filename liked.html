@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+     <link rel="icon" href="assets/img/image.png">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -21,6 +22,13 @@
                 <span>Spotify</span>
             </div>
 
+            <!-- Bottone hamburger: visibile solo su mobile (≤480px) -->
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Apri menu" aria-expanded="false">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <!-- Contenitore voci: a tendina/overlay su mobile, flat su desktop (display:contents) -->
+            <div class="sidebar-menu">
             <nav class="main-nav">
                 <a href="home.html" class="nav-link" data-page="home">
                     <i class="bi bi-house-door-fill"></i>
@@ -49,6 +57,7 @@
 
             <hr class="sidebar-divider">
             <div class="user-playlists" id="userPlaylists"></div>
+            </div>
         </aside>
 
         <!-- AREA PRINCIPALE -->
@@ -159,6 +168,59 @@
         </div>
     </div>
 
+    <!-- MODAL CONFERMA (azioni distruttive, es. elimina playlist) -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Conferma</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="confirmModalBody"></div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annulla</button>
+                    <button type="button" class="btn btn-spotify" id="confirmModalOkBtn">Conferma</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL AZIONI BRANO (menu "tre puntini" su mobile) -->
+    <div class="modal fade" id="trackActionsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="trackActionsTitle">Opzioni brano</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="trackActionsList" class="add-playlist-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL AGGIUNGI A PLAYLIST -->
+    <div class="modal fade" id="addPlaylistModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Aggiungi a una playlist</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Elenco playlist popolato via JS -->
+                    <div id="addPlaylistList" class="add-playlist-list"></div>
+                    <hr class="border-secondary">
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control login-input" id="addNewPlaylistName" placeholder="Nuova playlist">
+                        <button type="button" class="btn btn-spotify text-nowrap" id="addCreatePlaylistBtn">Crea e aggiungi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <audio id="audioPlayer" preload="none"></audio>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
@@ -167,4 +229,4 @@
     <script src="assets/js/app.js"></script>
     <script src="assets/js/liked.js"></script>
 </body>
-</ht
+</html>
