@@ -3,11 +3,16 @@
 // ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Auto-login: se già loggato salta direttamente alla home
-    if (localStorage.getItem('display_name')) {
+    // Auto-login: la sessione attiva è separata dal profilo, così il logout
+    // chiude la sessione ma conserva i dati dell'utente in localStorage.
+    if (localStorage.getItem('session_active')) {
         location.href = 'home.html';
         return;
     }
+    // Pre-compila lo username dell'ultimo accesso, se presente (profilo conservato)
+    const savedName = localStorage.getItem('display_name');
+    if (savedName) document.getElementById('loginUser').value = savedName;
+
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
 });
 
@@ -36,6 +41,8 @@ async function handleLogin(e) {
 
     const displayName = isEmail ? user.split('@')[0] : user;
     localStorage.setItem('display_name', displayName);
+    // Apre la sessione: questo flag (non il profilo) determina "sono loggato"
+    localStorage.setItem('session_active', '1');
     if (!localStorage.getItem('profile_join_date')) {
         localStorage.setItem('profile_join_date', new Date().toISOString());
     }

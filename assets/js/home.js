@@ -3,8 +3,8 @@
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Controllo autenticazione: se non loggato torna al login
-    if (!localStorage.getItem('display_name')) {
+    // Controllo autenticazione: senza sessione attiva torna al login
+    if (!localStorage.getItem('session_active')) {
         location.href = 'login.html';
         return;
     }
