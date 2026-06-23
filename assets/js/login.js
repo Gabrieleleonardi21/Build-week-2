@@ -39,5 +39,6 @@ async function handleLogin(e) {
     if (!localStorage.getItem('profile_join_date')) {
         localStorage.setItem('profile_join_date', new Date().toISOString());
     }
+    sessionStorage.setItem('just_logged_in', '1');
     location.href = 'home.html';
 }
