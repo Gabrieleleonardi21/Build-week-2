@@ -5,7 +5,6 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 ---
 
 ## Indice dei Contenuti
-
 1. [💻 Demo rapida](#-demo-rapida)
 2. [📋 Funzionalità](#-funzionalità)
 3. [🧾 Struttura del progetto](#-struttura-del-progetto)
