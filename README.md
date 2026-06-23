@@ -4,6 +4,18 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 
 ---
 
+## Indice dei Contenuti
+1. [💻 Demo rapida](#-demo-rapida)
+2. [📋 Funzionalità](#-funzionalità)
+3. [🧾 Struttura del progetto](#-struttura-del-progetto)
+4. [📱 Tecnologie](#-tecnologie)
+5. [🏛️ Architettura](#️-architettura)
+6. [🧰 Limiti tecnici](#-limiti-tecnici)
+7. [🪛 Miglioramenti futuri](#-miglioramenti-futuri)
+8. [📌 Crediti](#-crediti)
+
+---
+
 ## 💻 Demo rapida
 
 1. Apri `login.html` in un browser moderno (o usa un server locale — vedi sotto)
