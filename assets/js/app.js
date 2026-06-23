@@ -286,6 +286,7 @@ async function refreshCurrentPage() {
 // Prende il primo risultato iTunes per il termine della playlist e usa il suo artwork
 // ============================================
 async function getVirtualPlaylistCover(p) {
+  if (p.id === 'vp_top_it') return 'assets/img/santino.png';
   return cached("cover_" + p.id, async () => {
     const results = await itunesSearch(p.term, "song", 1);
     const item = results[0];
