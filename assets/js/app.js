@@ -628,11 +628,9 @@ function renderProfile(container) {
 }
 
 function logout() {
-  localStorage.removeItem("display_name");
-  localStorage.removeItem("profile_photo");
-  localStorage.removeItem("profile_bio");
-  localStorage.removeItem("profile_location");
-  localStorage.removeItem("profile_join_date");
+  // Chiude solo la sessione: il profilo (nome, foto, bio, località, join date)
+  // resta in localStorage e verrà ripristinato al login successivo.
+  localStorage.removeItem("session_active");
   localStorage.removeItem("current_track");
   audio.pause();
   audio.src = "";
