@@ -33,12 +33,59 @@ const _trackRegistry = new Map();
 let pipWindow = null;
 let pipEls = null;
 
-// Cache per le risposte API — evita chiamate duplicate alla stessa risorsa
+// Cache per le risposte API — evita chiamate duplicate e fa da fallback
+// quando l'API iTunes è irraggiungibile o limita le richieste (HTTP 403).
+// Livelli: 1) memoria  2) localStorage entro la TTL  3) chiamata API
+// In caso di errore di rete usa il dato salvato in localStorage, anche se scaduto.
 const _cache = {};
+const _CACHE_PREFIX = "apicache_";
+const _CACHE_TTL = 1000 * 60 * 60 * 24; // 24h: il catalogo musicale cambia di rado
+
+function _readCache(key) {
+  try {
+    const raw = localStorage.getItem(_CACHE_PREFIX + key);
+    if (!raw) return null;
+    return JSON.parse(raw); // { t: timestamp, v: valore }
+  } catch (_) {
+    return null;
+  }
+}
+
+function _writeCache(key, value) {
+  try {
+    localStorage.setItem(
+      _CACHE_PREFIX + key,
+      JSON.stringify({ t: Date.now(), v: value }),
+    );
+  } catch (_) {
+    // quota piena o storage non disponibile: resta comunque la cache in memoria
+  }
+}
+
 async function cached(key, fn) {
+  // 1) cache in memoria (sessione corrente)
   if (_cache[key]) return _cache[key];
-  _cache[key] = await fn();
-  return _cache[key];
+
+  // 2) cache su localStorage ancora valida: evita del tutto la chiamata API
+  const stored = _readCache(key);
+  if (stored && Date.now() - stored.t < _CACHE_TTL) {
+    _cache[key] = stored.v;
+    return stored.v;
+  }
+
+  // 3) chiamata API; se fallisce, ripiega sul dato salvato (anche scaduto)
+  try {
+    const value = await fn();
+    _cache[key] = value;
+    _writeCache(key, value);
+    return value;
+  } catch (e) {
+    if (stored) {
+      _cache[key] = stored.v;
+      return stored.v;
+    }
+    throw e; // nessun fallback disponibile
+  }
 }
 
 // Mappa delle pagine principali con i file HTML corrispondenti
