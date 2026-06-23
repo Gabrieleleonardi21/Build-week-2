@@ -184,6 +184,14 @@ function setupNavigation() {
     .getElementById("confirmPlaylistBtn")
     .addEventListener("click", createPlaylist);
   document
+    .getElementById("addCreatePlaylistBtn")
+    .addEventListener("click", createPlaylistAndAdd);
+  document.getElementById("confirmModalOkBtn").addEventListener("click", () => {
+    bootstrap.Modal.getInstance(document.getElementById("confirmModal")).hide();
+    if (_confirmCallback) _confirmCallback();
+    _confirmCallback = null;
+  });
+  document
     .getElementById("saveProfileBtn")
     .addEventListener("click", saveProfile);
   document
@@ -400,10 +408,15 @@ function renderUserPlaylist(container, playlistId) {
   );
   playlist.tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
-  const tracksEl =
-    playlist.tracks.length > 0
-      ? renderTrackList(playlist.tracks)
-      : make("p", "text-secondary mt-4", "Questa playlist è vuota.");
+  // Le righe in una playlist utente mostrano anche il bottone "rimuovi"
+  let tracksEl;
+  if (playlist.tracks.length > 0) {
+    tracksEl = renderTrackList(playlist.tracks, true, {
+      removeFromPlaylistId: playlistId,
+    });
+  } else {
+    tracksEl = make("p", "text-secondary mt-4", "Questa playlist è vuota.");
+  }
 
   const meta = make("div", "playlist-meta");
   append(
@@ -416,9 +429,16 @@ function renderUserPlaylist(container, playlistId) {
   playBtn.addEventListener("click", () => playTracksList(playlist.tracks));
   playBtn.append(make("i", "bi bi-play-fill"));
 
+  // Bottone elimina playlist
+  const deleteBtn = make("button", "btn-icon");
+  deleteBtn.style.fontSize = "32px";
+  deleteBtn.title = "Elimina playlist";
+  deleteBtn.addEventListener("click", () => deletePlaylist(playlistId));
+  deleteBtn.append(make("i", "bi bi-trash"));
+
   container.replaceChildren(
     makePlaylistHeader(cover, "Playlist", playlist.name, meta),
-    append(make("div", "playlist-actions-row"), playBtn),
+    append(make("div", "playlist-actions-row"), playBtn, deleteBtn),
     tracksEl,
   );
 }
@@ -657,8 +677,9 @@ async function playPlaylistById(playlistId) {
 // RENDER TRACKLIST
 // ============================================
 
-// Costruisce una singola riga della tracklist come elemento DOM
-function makeTrackRow(track, index, ids, showAlbumCol) {
+// Costruisce una singola riga della tracklist come elemento DOM.
+// options.removeFromPlaylistId — se presente, mostra il bottone "rimuovi da playlist"
+function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
   const isPlaying = state.currentTrack && state.currentTrack.id === track.id;
   const isLiked = state.likedTracks.has(track.id);
 
@@ -687,6 +708,39 @@ function makeTrackRow(track, index, ids, showAlbumCol) {
   });
   likeBtn.append(likeIcon);
 
+  // Bottone "Aggiungi a una playlist" — presente su ogni riga
+  const addBtn = make("button", "btn-icon");
+  addBtn.title = "Aggiungi a una playlist";
+  addBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openAddToPlaylistModal(track.id);
+  });
+  addBtn.append(make("i", "bi bi-plus-circle"));
+
+  // Cella azioni: aggiungi + like (+ rimuovi quando siamo in una playlist utente)
+  const actions = make("div", "track-actions");
+  append(actions, addBtn, likeBtn);
+  if (options.removeFromPlaylistId) {
+    const removeBtn = make("button", "btn-icon");
+    removeBtn.title = "Rimuovi da questa playlist";
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeTrackFromPlaylist(options.removeFromPlaylistId, track.id);
+    });
+    removeBtn.append(make("i", "bi bi-x-circle"));
+    actions.append(removeBtn);
+  }
+
+  // Bottone "tre puntini": su mobile sostituisce le icone inline (vedi CSS)
+  const moreBtn = make("button", "btn-icon track-more-btn");
+  moreBtn.title = "Altre opzioni";
+  moreBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openTrackActionsModal(track.id, options);
+  });
+  moreBtn.append(make("i", "bi bi-three-dots"));
+  actions.append(moreBtn);
+
   const cover = make("img");
   cover.src = track.cover;
   cover.alt = track.title;
@@ -703,7 +757,7 @@ function makeTrackRow(track, index, ids, showAlbumCol) {
     numDiv,
     info,
     make("div", "track-album", showAlbumCol ? track.album : track.artist),
-    append(make("div"), likeBtn),
+    actions,
     make("div", "track-duration", formatDuration(track.duration)),
   );
 
@@ -712,7 +766,7 @@ function makeTrackRow(track, index, ids, showAlbumCol) {
   return row;
 }
 
-function renderTrackList(trackList, showAlbumCol = true) {
+function renderTrackList(trackList, showAlbumCol = true, options = {}) {
   // Registra tutti i track per lookup futuro (like, play)
   trackList.forEach((t) => _trackRegistry.set(t.id, t));
   const ids = trackList.map((t) => t.id);
@@ -732,7 +786,7 @@ function renderTrackList(trackList, showAlbumCol = true) {
   const list = make("div", "tracklist");
   list.append(header);
   trackList.forEach((track, index) =>
-    list.append(makeTrackRow(track, index, ids, showAlbumCol)),
+    list.append(makeTrackRow(track, index, ids, showAlbumCol, options)),
   );
   return list;
 }
@@ -1005,4 +1059,189 @@ function renderUserPlaylists() {
       return a;
     }),
   );
+}
+
+// ============================================
+// AGGIUNGI / RIMUOVI BRANI E ELIMINA PLAYLIST
+// ============================================
+
+// Track in attesa di essere aggiunto (impostato dal modale "aggiungi a playlist")
+let _pendingAddTrackId = null;
+
+// Aggiunge un brano a una playlist. Restituisce true se aggiunto, false se già presente/non trovato
+function addTrackToPlaylist(playlistId, trackId) {
+  const playlist = state.userPlaylists.find((p) => p.id === playlistId);
+  if (!playlist) return false;
+  if (playlist.tracks.some((t) => t.id === trackId)) return false; // già presente
+
+  let track = _trackRegistry.get(trackId);
+  if (!track && state.currentTrack && state.currentTrack.id === trackId) {
+    track = state.currentTrack;
+  }
+  if (!track) return false;
+
+  playlist.tracks.push(track);
+  saveUserPlaylists();
+  refreshCurrentPage();
+  return true;
+}
+
+function removeTrackFromPlaylist(playlistId, trackId) {
+  const playlist = state.userPlaylists.find((p) => p.id === playlistId);
+  if (!playlist) return;
+  playlist.tracks = playlist.tracks.filter((t) => t.id !== trackId);
+  saveUserPlaylists();
+  refreshCurrentPage();
+}
+
+function deletePlaylist(playlistId) {
+  const playlist = state.userPlaylists.find((p) => p.id === playlistId);
+  if (!playlist) return;
+  showConfirm(
+    `Eliminare la playlist "${playlist.name}"?`,
+    () => {
+      state.userPlaylists = state.userPlaylists.filter(
+        (p) => p.id !== playlistId,
+      );
+      saveUserPlaylists();
+      renderUserPlaylists();
+      navigateTo("profile"); // la pagina della playlist non esiste più
+    },
+    "Elimina",
+  );
+}
+
+// Apre il modale per scegliere a quale playlist aggiungere il brano
+function openAddToPlaylistModal(trackId) {
+  _pendingAddTrackId = trackId;
+  renderAddPlaylistList();
+  document.getElementById("addNewPlaylistName").value = "";
+  new bootstrap.Modal(document.getElementById("addPlaylistModal")).show();
+}
+
+// Popola la lista di playlist dentro il modale "aggiungi a playlist"
+function renderAddPlaylistList() {
+  const list = document.getElementById("addPlaylistList");
+  if (state.userPlaylists.length === 0) {
+    list.replaceChildren(
+      make("p", "text-secondary m-0", "Non hai ancora playlist: creane una qui sotto."),
+    );
+    return;
+  }
+
+  const items = state.userPlaylists.map((p) => {
+    const already = p.tracks.some((t) => t.id === _pendingAddTrackId);
+    const btn = make("button", "add-playlist-item");
+    btn.append(make("span", "", p.name));
+    if (already) {
+      btn.disabled = true;
+      btn.append(make("i", "bi bi-check-lg")); // brano già presente
+    } else {
+      btn.addEventListener("click", () => {
+        addTrackToPlaylist(p.id, _pendingAddTrackId);
+        bootstrap.Modal.getInstance(
+          document.getElementById("addPlaylistModal"),
+        ).hide();
+        showToast("Aggiunto a " + p.name);
+      });
+    }
+    return btn;
+  });
+  list.replaceChildren(...items);
+}
+
+// Crea una nuova playlist e ci aggiunge subito il brano in attesa
+function createPlaylistAndAdd() {
+  const input = document.getElementById("addNewPlaylistName");
+  const name = input.value.trim();
+  if (!name) return;
+  const newPlaylist = { id: "up" + Date.now(), name, tracks: [] };
+  state.userPlaylists.push(newPlaylist);
+  addTrackToPlaylist(newPlaylist.id, _pendingAddTrackId); // salva + refresh
+  renderUserPlaylists();
+  input.value = "";
+  bootstrap.Modal.getInstance(
+    document.getElementById("addPlaylistModal"),
+  ).hide();
+  showToast("Creata e aggiunta a " + name);
+}
+
+// Messaggio temporaneo di conferma in basso allo schermo
+function showToast(message) {
+  const existing = document.querySelector(".toast-msg");
+  if (existing) existing.remove();
+  const toast = make("div", "toast-msg", message);
+  document.body.append(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+
+// Callback da eseguire alla conferma del modale generico
+let _confirmCallback = null;
+
+// Modale di conferma riutilizzabile (sostituisce confirm() nativo)
+function showConfirm(message, onConfirm, okLabel = "Conferma") {
+  document.getElementById("confirmModalBody").textContent = message;
+  document.getElementById("confirmModalOkBtn").textContent = okLabel;
+  _confirmCallback = onConfirm;
+  new bootstrap.Modal(document.getElementById("confirmModal")).show();
+}
+
+// ============================================
+// MENU AZIONI BRANO (mobile, bottone "tre puntini")
+// ============================================
+function openTrackActionsModal(trackId, options = {}) {
+  const track = _trackRegistry.get(trackId);
+  const title = document.getElementById("trackActionsTitle");
+  title.textContent = "Opzioni brano";
+  if (track) title.textContent = track.title;
+
+  const modalEl = document.getElementById("trackActionsModal");
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  const items = [];
+
+  // Aggiungi a una playlist — apre il modale dedicato dopo la chiusura di questo
+  const addItem = make("button", "add-playlist-item");
+  addItem.append(make("span", "", "Aggiungi a una playlist"));
+  addItem.append(make("i", "bi bi-plus-circle"));
+  addItem.addEventListener("click", () => {
+    modalEl.addEventListener(
+      "hidden.bs.modal",
+      () => openAddToPlaylistModal(trackId),
+      { once: true },
+    );
+    modal.hide();
+  });
+  items.push(addItem);
+
+  // Like / unlike
+  const liked = state.likedTracks.has(trackId);
+  let likeLabel = "Aggiungi ai preferiti";
+  let likeIcon = "bi bi-heart";
+  if (liked) {
+    likeLabel = "Togli dai preferiti";
+    likeIcon = "bi bi-heart-fill";
+  }
+  const likeItem = make("button", "add-playlist-item");
+  likeItem.append(make("span", "", likeLabel));
+  likeItem.append(make("i", likeIcon));
+  likeItem.addEventListener("click", () => {
+    toggleLike(trackId);
+    modal.hide();
+  });
+  items.push(likeItem);
+
+  // Rimuovi dalla playlist (solo dentro una playlist utente)
+  if (options.removeFromPlaylistId) {
+    const removeItem = make("button", "add-playlist-item");
+    removeItem.append(make("span", "", "Rimuovi da questa playlist"));
+    removeItem.append(make("i", "bi bi-x-circle"));
+    removeItem.addEventListener("click", () => {
+      removeTrackFromPlaylist(options.removeFromPlaylistId, trackId);
+      modal.hide();
+    });
+    items.push(removeItem);
+  }
+
+  document.getElementById("trackActionsList").replaceChildren(...items);
+  modal.show();
 }
