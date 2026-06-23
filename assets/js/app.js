@@ -148,6 +148,27 @@ function setupNavigation() {
   document
     .getElementById("logoBtn")
     .addEventListener("click", () => (location.href = "home.html"));
+
+  // Menu hamburger mobile (≤480px): apre/chiude la sidebar e cambia icona
+  const sidebar = document.querySelector(".sidebar");
+  const sidebarToggle = document.getElementById("sidebarToggle");
+  if (sidebarToggle) {
+    sidebarToggle.addEventListener("click", () => {
+      const isOpen = sidebar.classList.toggle("open");
+      sidebarToggle.setAttribute("aria-expanded", String(isOpen));
+      const icon = sidebarToggle.querySelector("i");
+      icon.className = "bi bi-list";
+      if (isOpen) icon.className = "bi bi-x-lg";
+    });
+
+    // Chiude il menu dopo aver scelto una voce (delega: copre anche le playlist dinamiche)
+    sidebar.addEventListener("click", (e) => {
+      if (!e.target.closest(".nav-link, .user-playlist-item")) return;
+      sidebar.classList.remove("open");
+      sidebarToggle.setAttribute("aria-expanded", "false");
+      sidebarToggle.querySelector("i").className = "bi bi-list";
+    });
+  }
   document
     .querySelector(".user-btn")
     .addEventListener("click", () => navigateTo("profile"));

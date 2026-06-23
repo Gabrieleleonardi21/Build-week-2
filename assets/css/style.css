@@ -136,9 +136,26 @@ body {
   font-weight: 700;
 }
 
+/* Su desktop il wrapper è trasparente: le voci restano figli flex della sidebar.
+   Diventa un pannello a tendina solo su mobile (vedi media query 480px). */
+.sidebar-menu {
+  display: contents;
+}
+
 .logo-container i {
   font-size: 36px;
   color: var(--spotify-white);
+}
+
+/* Bottone hamburger — nascosto di default, attivo solo su mobile (≤480px) */
+.sidebar-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--spotify-white);
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
 }
 
 .main-nav,
@@ -917,5 +934,123 @@ body {
   .tracklist-header > :nth-child(3),
   .track-row > :nth-child(3) {
     display: none;
+  }
+}
+
+/* ============================================
+   MOBILE — SIDEBAR A MENU HAMBURGER (≤480px)
+   La sidebar diventa una barra in alto: logo + bottone hamburger.
+   Le voci compaiono sotto il logo solo quando il menu è aperto (.open).
+   ============================================ */
+@media (max-width: 480px) {
+  /* Sidebar in cima, main sotto. Il player è fisso (fuori dalla griglia).
+     100dvh = altezza reale del viewport: evita il player sotto le barre del browser. */
+  .app-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "sidebar"
+      "main";
+    height: 100dvh;
+  }
+
+  /* Barra in alto: logo + hamburger sulla stessa riga.
+     position:relative ancora il menu a tendina assoluto. */
+  .sidebar {
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 16px;
+    overflow: visible;
+    position: relative;
+  }
+
+  /* Logo a sinistra con testo "Spotify" di nuovo visibile */
+  .logo-container {
+    flex: 1;
+    padding: 0;
+  }
+  .logo-container span {
+    display: inline;
+  }
+
+  /* Mostra il bottone hamburger solo qui */
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  /* Menu a tendina in overlay: posizionato sotto il logo, NON spinge
+     main/player perché è absolute (la sidebar resta una barra sottile). */
+  .sidebar-menu {
+    display: none; /* override di display:contents */
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    background-color: var(--sidebar-bg);
+    padding: 8px 12px 16px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    max-height: calc(100vh - 90px - 60px);
+    overflow-y: auto;
+    z-index: 30;
+  }
+
+  /* Menu aperto */
+  .sidebar.open .sidebar-menu {
+    display: flex;
+  }
+
+  /* Voci con testo completo (annulla il solo-icone della query 768px) */
+  .sidebar.open .nav-link span {
+    display: inline;
+  }
+  .sidebar.open .user-playlists {
+    display: block;
+  }
+
+  /* PLAYER COMPATTO ANCORATO IN BASSO: a sinistra le info del brano,
+     a destra prev/play/next. position:fixed lo tiene sempre incollato al fondo. */
+  .player {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 72px;
+    z-index: 40;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 0 12px;
+  }
+  /* Nascondo volume/coda/dispositivo e shuffle/repeat per non affollare */
+  .player-right,
+  #shuffleBtn,
+  #repeatBtn {
+    display: none;
+  }
+  .player-controls {
+    gap: 12px;
+  }
+  /* Barra avanzamento sottile in stile Spotify, attaccata sopra al player.
+     Riusa #progressFill (aggiornato dal JS): niente tempi, solo la linea. */
+  .player-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    gap: 0;
+    padding: 0;
+  }
+  .player-progress .time-text {
+    display: none;
+  }
+  .player-progress .progress-bar-container {
+    height: 3px;
+    border-radius: 0;
+  }
+  /* Spazio in fondo al contenuto così l'ultimo elemento non finisce dietro al player */
+  .content-area {
+    padding-bottom: 96px;
   }
 }
