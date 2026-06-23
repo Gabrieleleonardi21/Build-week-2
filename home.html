@@ -193,6 +193,34 @@
         </div>
     </div>
 
+    <!-- MODAL DETTAGLIO BRANO (click su riga ≥480px) -->
+    <div class="modal fade" id="trackDetailModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered track-detail-dialog">
+            <div class="modal-content track-detail-content">
+                <button type="button" class="btn-close btn-close-white track-detail-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                <img id="trackDetailCover" src="" alt="" class="track-detail-cover">
+                <div class="track-detail-info">
+                    <p class="track-detail-badge">Brano</p>
+                    <h2 class="track-detail-title" id="trackDetailTitle"></h2>
+                    <p class="track-detail-artist" id="trackDetailArtist"></p>
+                    <p class="track-detail-album" id="trackDetailAlbum"></p>
+                    <p class="track-detail-duration" id="trackDetailDuration"></p>
+                    <div class="track-detail-actions">
+                        <button class="btn-play-large" id="trackDetailPlayBtn" title="Riproduci">
+                            <i class="bi bi-play-fill"></i>
+                        </button>
+                        <button class="btn-icon track-detail-like-btn" id="trackDetailLikeBtn" title="Mi piace">
+                            <i class="bi bi-heart"></i>
+                        </button>
+                        <button class="btn-icon track-detail-add-btn" id="trackDetailAddBtn" title="Aggiungi a playlist">
+                            <i class="bi bi-plus-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL AZIONI BRANO (menu "tre puntini" su mobile) -->
     <div class="modal fade" id="trackActionsModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">

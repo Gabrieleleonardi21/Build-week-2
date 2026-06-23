@@ -33,6 +33,9 @@ const _trackRegistry = new Map();
 let pipWindow = null;
 let pipEls = null;
 
+// Timer per distinguere click singolo (apri modale) da doppio click (riproduci)
+let _trackDetailTimer = null;
+
 // Cache per le risposte API — evita chiamate duplicate e fa da fallback
 // quando l'API iTunes è irraggiungibile o limita le richieste (HTTP 403).
 // Livelli: 1) memoria  2) localStorage entro la TTL  3) chiamata API
@@ -912,8 +915,19 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
     make("div", "track-duration", formatDuration(track.duration)),
   );
 
-  // Double-click usa closure su ids — no JSON inline, no onclick string
-  row.addEventListener("dblclick", () => playTrackInList(track.id, ids));
+  // Click singolo (≥480px): apre il modale dettaglio brano dopo 220ms
+  // Il timer viene cancellato se arriva un doppio click, evitando che si sovrappongano
+  row.addEventListener("click", () => {
+    if (window.innerWidth < 480) return;
+    clearTimeout(_trackDetailTimer);
+    _trackDetailTimer = setTimeout(() => openTrackDetailModal(track.id, ids, options), 220);
+  });
+
+  // Doppio click: riproduce direttamente (cancella il timer del click singolo)
+  row.addEventListener("dblclick", () => {
+    clearTimeout(_trackDetailTimer);
+    playTrackInList(track.id, ids);
+  });
   return row;
 }
 
@@ -1559,6 +1573,48 @@ function showConfirm(message, onConfirm, okLabel = "Conferma") {
   document.getElementById("confirmModalOkBtn").textContent = okLabel;
   _confirmCallback = onConfirm;
   new bootstrap.Modal(document.getElementById("confirmModal")).show();
+}
+
+// ============================================
+// MODAL DETTAGLIO BRANO (click su riga ≥480px)
+// ============================================
+function openTrackDetailModal(trackId, ids, options = {}) {
+  const track = _trackRegistry.get(trackId);
+  if (!track) return;
+
+  document.getElementById("trackDetailCover").src = track.cover;
+  document.getElementById("trackDetailCover").alt = track.title;
+  document.getElementById("trackDetailTitle").textContent = track.title;
+  document.getElementById("trackDetailArtist").textContent = track.artist;
+  document.getElementById("trackDetailAlbum").textContent = track.album;
+  document.getElementById("trackDetailDuration").textContent = formatDuration(track.duration);
+
+  const modalEl = document.getElementById("trackDetailModal");
+
+  document.getElementById("trackDetailPlayBtn").onclick = () => {
+    bootstrap.Modal.getInstance(modalEl).hide();
+    playTrackInList(trackId, ids);
+  };
+
+  _updateTrackDetailLike(trackId);
+  document.getElementById("trackDetailLikeBtn").onclick = () => {
+    toggleLike(trackId);
+    _updateTrackDetailLike(trackId);
+  };
+
+  document.getElementById("trackDetailAddBtn").onclick = () => {
+    modalEl.addEventListener("hidden.bs.modal", () => openAddToPlaylistModal(trackId), { once: true });
+    bootstrap.Modal.getInstance(modalEl).hide();
+  };
+
+  new bootstrap.Modal(modalEl).show();
+}
+
+function _updateTrackDetailLike(trackId) {
+  const liked = state.likedTracks.has(trackId);
+  const icon = document.querySelector("#trackDetailLikeBtn i");
+  icon.className = liked ? "bi bi-heart-fill" : "bi bi-heart";
+  icon.style.color = liked ? "var(--spotify-green)" : "";
 }
 
 // ============================================
