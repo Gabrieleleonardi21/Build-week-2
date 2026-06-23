@@ -39,5 +39,7 @@ async function handleLogin(e) {
     if (!localStorage.getItem('profile_join_date')) {
         localStorage.setItem('profile_join_date', new Date().toISOString());
     }
+    // Flag letto da app.js sulla home per far partire i confetti post-login
+    sessionStorage.setItem('just_logged_in', '1');
     location.href = 'home.html';
 }
