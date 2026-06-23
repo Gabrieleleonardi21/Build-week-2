@@ -1216,3 +1216,95 @@ body {
     display: inline-flex;
   }
 }
+
+/* ============================================
+   MODAL DETTAGLIO BRANO (click su riga ≥480px)
+   ============================================ */
+.track-detail-dialog {
+  max-width: 580px;
+}
+
+.track-detail-content {
+  background-color: var(--spotify-dark-gray);
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  position: relative;
+  min-height: 220px;
+}
+
+.track-detail-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+}
+
+.track-detail-cover {
+  width: 220px;
+  height: 220px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.track-detail-info {
+  padding: 20px 28px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.track-detail-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--spotify-light-gray);
+  margin: 0 0 8px;
+}
+
+.track-detail-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--spotify-white);
+  margin: 0 0 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-detail-artist {
+  font-size: 15px;
+  color: var(--spotify-white);
+  margin: 0 0 4px;
+}
+
+.track-detail-album {
+  font-size: 13px;
+  color: var(--spotify-light-gray);
+  margin: 0 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-detail-duration {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 20px;
+}
+
+.track-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.track-detail-like-btn,
+.track-detail-add-btn {
+  font-size: 24px;
+}
