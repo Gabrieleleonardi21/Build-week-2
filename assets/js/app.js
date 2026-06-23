@@ -690,15 +690,36 @@ function updatePhotoPreview(photo) {
   }
 }
 
-function previewProfilePhoto(e) {
+// Ridimensiona e comprime l'immagine prima di salvarla: una foto a piena
+// risoluzione come data URL satura la quota di localStorage (~5 MB). Riducendo
+// il lato max a `maxSize` px ed esportando in JPEG si ottengono pochi KB.
+function resizeImage(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        // Mantiene le proporzioni rientrando in maxSize x maxSize
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = make("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function previewProfilePhoto(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    tempProfilePhoto = ev.target.result;
-    updatePhotoPreview(tempProfilePhoto);
-  };
-  reader.readAsDataURL(file);
+  tempProfilePhoto = await resizeImage(file, 256);
+  updatePhotoPreview(tempProfilePhoto);
 }
 
 function saveProfile() {
@@ -718,8 +739,14 @@ function saveProfile() {
   else localStorage.removeItem("profile_location");
 
   state.profilePhoto = tempProfilePhoto;
-  if (tempProfilePhoto) localStorage.setItem("profile_photo", tempProfilePhoto);
-  else localStorage.removeItem("profile_photo");
+  // Se la quota è piena setItem lancia QuotaExceededError: lo intercettiamo
+  // per non interrompere il salvataggio in silenzio e avvisare l'utente.
+  try {
+    if (tempProfilePhoto) localStorage.setItem("profile_photo", tempProfilePhoto);
+    else localStorage.removeItem("profile_photo");
+  } catch (_) {
+    alert("Spazio di archiviazione insufficiente: la foto non è stata salvata.");
+  }
   updateUserMenu();
   bootstrap.Modal.getInstance(document.getElementById("profileModal")).hide();
   refreshCurrentPage();
