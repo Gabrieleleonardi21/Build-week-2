@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (hash) {
         navigateTo(decodeURIComponent(hash), false);
     } else {
-        showLoading(content);
-        await renderHome(content);
+        // renderCurrentMainPage gestisce spinner + errori (no caricamento infinito)
+        await renderCurrentMainPage();
     }
 });
 

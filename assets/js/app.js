@@ -145,9 +145,21 @@ function setupNavigation() {
   const activePage = PAGE_FOR_FILE[file] || "home";
   document.querySelectorAll(".nav-link[data-page]").forEach((link) => {
     link.classList.toggle("active", link.dataset.page === activePage);
+
+    // Se il link punta al file su cui siamo già, ri-renderizza in-place invece
+    // di ricaricare la pagina: evita reload inutili e di ri-chiamare l'API.
+    const target = _MAIN_PAGES[link.dataset.page];
+    if (target === file) {
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        history.replaceState(null, "", target); // rimuove eventuale #sub-pagina
+        updateActiveNav(link.dataset.page);
+        renderCurrentMainPage();
+      });
+    }
   });
 
-  // I link principali (Home, Cerca, Brani) usano href nativi — nessun listener JS
+  // Gli altri link principali usano href nativi — nessun listener JS
   document
     .getElementById("backBtn")
     .addEventListener("click", () => window.history.back());
@@ -214,13 +226,7 @@ function setupNavigation() {
       await showPage(e.state.page);
     } else {
       // Nessuno stato: torna alla pagina default del file corrente
-      state.currentPage = null;
-      if (window._pageRenderer) {
-        const content = document.getElementById("contentArea");
-        showLoading(content);
-        await window._pageRenderer(content);
-        content.parentElement.scrollTop = 0;
-      }
+      await renderCurrentMainPage();
     }
   });
 }
@@ -238,10 +244,7 @@ async function showPage(page) {
       location.href = _MAIN_PAGES[page];
       return;
     }
-    state.currentPage = null;
-    showLoading(content);
-    await window._pageRenderer(content);
-    content.parentElement.scrollTop = 0;
+    await renderCurrentMainPage();
     return;
   }
 
@@ -260,21 +263,7 @@ async function showPage(page) {
     else if (page.startsWith("genre-"))
       await renderGenre(content, page.slice(6));
   } catch (e) {
-    const box = make("div", "text-center mt-5 text-secondary");
-    const icon = make("i", "bi bi-exclamation-circle");
-    icon.style.fontSize = "48px";
-    append(
-      box,
-      icon,
-      make(
-        "p",
-        "mt-3",
-        "Errore nel caricamento. Controlla la connessione e riprova.",
-      ),
-      make("small", "text-danger", e.message || String(e)),
-    );
-    content.replaceChildren(box);
-    console.error(e);
+    showRenderError(content, e);
   }
 
   content.parentElement.scrollTop = 0;
@@ -288,13 +277,53 @@ function showLoading(container) {
   container.replaceChildren(box);
 }
 
+// Box di errore con bottone "Riprova" — riusato da pagine principali e sub-pagine.
+// Evita che un fallimento dell'API lasci lo spinner di caricamento all'infinito.
+function showRenderError(content, e) {
+  const box = make("div", "text-center mt-5 text-secondary");
+  const icon = make("i", "bi bi-exclamation-circle");
+  icon.style.fontSize = "48px";
+  const retry = make("button", "btn btn-spotify mt-3", "Riprova");
+  retry.addEventListener("click", () => refreshCurrentPage());
+  append(
+    box,
+    icon,
+    make(
+      "p",
+      "mt-3",
+      "Errore nel caricamento. Controlla la connessione e riprova.",
+    ),
+    retry,
+  );
+  content.replaceChildren(box);
+  console.error(e);
+}
+
+// Renderizza la pagina principale (home/search/liked) con spinner e gestione errori
+async function renderCurrentMainPage() {
+  const content = document.getElementById("contentArea");
+  if (!window._pageRenderer) return;
+  state.currentPage = null;
+  showLoading(content);
+  try {
+    await window._pageRenderer(content);
+  } catch (e) {
+    showRenderError(content, e);
+  }
+  content.parentElement.scrollTop = 0;
+}
+
 // Ri-renderizza la vista attuale: aggiorna indicatori di riproduzione e stato like
 async function refreshCurrentPage() {
   const content = document.getElementById("contentArea");
   if (state.currentPage) {
     await showPage(state.currentPage);
   } else if (window._pageRenderer) {
-    await window._pageRenderer(content);
+    try {
+      await window._pageRenderer(content);
+    } catch (e) {
+      showRenderError(content, e);
+    }
   }
 }
 
@@ -1291,4 +1320,100 @@ function openTrackActionsModal(trackId, options = {}) {
 
   document.getElementById("trackActionsList").replaceChildren(...items);
   modal.show();
+}
+
+// ============================================
+// CONFETTI ROSA — appaiono dopo il login
+// ============================================
+
+const _confettiCanvas = document.getElementById('glitterCanvas');
+const _confettiCtx = _confettiCanvas ? _confettiCanvas.getContext('2d') : null;
+let _confettiParticles = [];
+let _confettiRunning = false;
+
+const _CONFETTI_COLORS = [
+  '#FF69B4','#FF69B4','#FF69B4',
+  '#FFB6C1','#FFB6C1','#FFB6C1',
+  '#FF1493','#FF1493',
+  '#FFC0CB','#FFC0CB',
+  '#FF85C2',
+  '#ffffff','#ffffff',
+  '#FFE4F0'
+];
+
+function _rnd(min, max) { return Math.random() * (max - min) + min; }
+
+function _resizeConfetti() {
+  if (!_confettiCanvas) return;
+  _confettiCanvas.width = window.innerWidth;
+  _confettiCanvas.height = window.innerHeight;
+}
+
+function _createConfettiParticle() {
+  return {
+    x: _rnd(0, window.innerWidth),
+    y: _rnd(-20, -5),
+    size: _rnd(4, 9),
+    speedY: _rnd(1.5, 3.5),
+    speedX: _rnd(-1.5, 1.5),
+    rotation: _rnd(0, 360),
+    rotationSpeed: _rnd(-5, 5),
+    color: _CONFETTI_COLORS[Math.floor(Math.random() * _CONFETTI_COLORS.length)],
+    opacity: _rnd(0.7, 1),
+    shape: Math.random() < 0.6 ? 'rect' : 'circle'
+  };
+}
+
+function _confettiLoop() {
+  if (!_confettiCtx) return;
+  _confettiCtx.clearRect(0, 0, _confettiCanvas.width, _confettiCanvas.height);
+
+  if (_confettiRunning && Math.random() < 0.8) {
+    _confettiParticles.push(_createConfettiParticle());
+  }
+
+  for (let i = _confettiParticles.length - 1; i >= 0; i--) {
+    const p = _confettiParticles[i];
+
+    _confettiCtx.save();
+    _confettiCtx.globalAlpha = Math.max(0, p.opacity);
+    _confettiCtx.translate(p.x, p.y);
+    _confettiCtx.rotate(p.rotation * Math.PI / 180);
+    _confettiCtx.fillStyle = p.color;
+
+    if (p.shape === 'rect') {
+      _confettiCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size * 2);
+    } else {
+      _confettiCtx.beginPath();
+      _confettiCtx.ellipse(0, 0, p.size/2, p.size/3, 0, 0, Math.PI * 2);
+      _confettiCtx.fill();
+    }
+
+    _confettiCtx.restore();
+
+    p.y += p.speedY;
+    p.x += p.speedX;
+    p.rotation += p.rotationSpeed;
+    p.opacity -= 0.004;
+
+    if (p.y > window.innerHeight + 15 || p.opacity <= 0) {
+      _confettiParticles.splice(i, 1);
+    }
+  }
+
+  requestAnimationFrame(_confettiLoop);
+}
+
+function _startConfetti() {
+  _confettiRunning = true;
+  setTimeout(() => { _confettiRunning = false; }, 5000);
+}
+
+_resizeConfetti();
+window.addEventListener('resize', _resizeConfetti);
+_confettiLoop();
+
+if (sessionStorage.getItem('just_logged_in')) {
+  sessionStorage.removeItem('just_logged_in');
+  _startConfetti();
 }
