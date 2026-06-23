@@ -83,7 +83,7 @@ async function renderHome(container) {
     if (state.userPlaylists.length > 0) {
         const userGrid = make('div', 'card-grid');
         state.userPlaylists.forEach(p => {
-            const cover = createCover(p.name.substring(0, 2).toUpperCase(), '#1db954', '#191414');
+            const cover = "assets/img/ppp.jpg";
             userGrid.append(makeCard(cover, p.name, `${p.tracks.length} brani`, 'userplaylist-' + p.id));
         });
         // Inserisce le playlist utente prima delle playlist in evidenza

@@ -491,11 +491,7 @@ function renderUserPlaylist(container, playlistId) {
   const playlist = state.userPlaylists.find((p) => p.id === playlistId);
   if (!playlist) return;
 
-  const cover = createCover(
-    playlist.name.substring(0, 2).toUpperCase(),
-    "#1db954",
-    "#191414",
-  );
+  const cover = "assets/img/ppp.jpg";
   playlist.tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   // Le righe in una playlist utente mostrano anche il bottone "rimuovi"
