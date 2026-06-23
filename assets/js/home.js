@@ -33,14 +33,19 @@ async function renderHome(container) {
     if (hour < 12) greeting = 'Buongiorno';
     else if (hour < 18) greeting = 'Buon pomeriggio';
 
-    // Fetch parallelo: album popolari + cover di tutte le playlist virtuali
-    const [rawAlbums, vpCovers] = await Promise.all([
+    // Fetch parallelo: album popolari + cover di tutte le playlist virtuali + podcast più ascoltati
+    const [rawAlbums, vpCovers, rawPodcasts] = await Promise.all([
         cached('top_albums', () => itunesSearch('top hits', 'album', 8)),
         Promise.all(VIRTUAL_PLAYLISTS.map(p => getVirtualPlaylistCover(p))),
+        cached('top_podcasts', () => itunesGetTopPodcasts(8))
     ]);
 
     const albums = rawAlbums.map(normalizeAlbum).filter(Boolean);
     const uniqueAlbums = [...new Map(albums.map(a => [a.id, a])).values()];
+
+    const podcasts = rawPodcasts
+        .map(normalizePodcast)
+        .filter(Boolean);
 
     // Mappa id playlist → url cover per accesso rapido
     const coverMap = Object.fromEntries(VIRTUAL_PLAYLISTS.map((p, i) => [p.id, vpCovers[i]]));
@@ -72,11 +77,31 @@ async function renderHome(container) {
         playlistGrid.append(makeCard(coverMap[p.id], p.title, p.description, 'playlist-' + p.id));
     });
 
+    const podcastGrid = make('div', 'card-grid'); podcasts.forEach(podcast => {
+        const card = make('div', 'album-card');
+        card.addEventListener('click', () => {
+            window.open(podcast.url, '_blank');
+        });
+        const img = make('img', 'album-cover');
+        img.src = podcast.cover;
+        img.alt = podcast.title;
+        append(
+            card,
+            img,
+            make('div', 'album-title', podcast.title),
+            make('div', 'album-description', podcast.author)
+        );
+
+        podcastGrid.append(card);
+    });
+
     const nodes = [
         make('h1', 'greeting-title', `${greeting}, ${state.displayName}`),
         quickGrid,
         make('h2', 'section-title', 'Playlist in evidenza'),
         playlistGrid,
+        make('h2', 'section-title', '🎙️ Podcast più ascoltati'),
+        podcastGrid,
     ];
 
     // Playlist utente (sostituite la sezione "libreria" rimossa dalla MPA)

@@ -93,6 +93,18 @@ async function itunesGetPlaylistTracks(playlistId) {
     return items.filter(i => i.wrapperType === 'track' && i.trackId);
 }
 
+async function itunesGetTopPodcasts(limit = 8) {
+    const podcasts = await itunesSearch(
+        'podcast',
+        'podcast',
+        limit
+    );
+
+    return podcasts.filter(
+        p => p.wrapperType === 'track' || p.collectionId
+    );
+}
+
 // ============================================
 // NORMALIZZATORI (formato iTunes → formato app)
 // ============================================
@@ -125,5 +137,21 @@ function normalizeAlbum(item) {
         artist: item.artistName || '',
         cover,
         trackCount: item.trackCount || 0,
+    };
+}
+
+function normalizePodcast(item) {
+    if (!item) return null;
+
+    const cover = item.artworkUrl100
+        ? item.artworkUrl100.replace('100x100bb', '600x600bb')
+        : createCover('🎙️', '#1db954', '#191414');
+
+    return {
+        id: String(item.collectionId || item.trackId),
+        title: item.collectionName || item.trackName || '',
+        author: item.artistName || '',
+        cover,
+        url: item.collectionViewUrl || item.trackViewUrl || '#'
     };
 }
