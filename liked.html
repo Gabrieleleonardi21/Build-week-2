@@ -21,6 +21,13 @@
                 <span>Spotify</span>
             </div>
 
+            <!-- Bottone hamburger: visibile solo su mobile (≤480px) -->
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Apri menu" aria-expanded="false">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <!-- Contenitore voci: a tendina/overlay su mobile, flat su desktop (display:contents) -->
+            <div class="sidebar-menu">
             <nav class="main-nav">
                 <a href="home.html" class="nav-link" data-page="home">
                     <i class="bi bi-house-door-fill"></i>
@@ -49,6 +56,7 @@
 
             <hr class="sidebar-divider">
             <div class="user-playlists" id="userPlaylists"></div>
+            </div>
         </aside>
 
         <!-- AREA PRINCIPALE -->
