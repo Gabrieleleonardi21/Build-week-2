@@ -1,172 +1,158 @@
-# Build-week-2
+# 🎶 Spotify Clone
 
-============================================================
-SPOTIFY CLONE — README
-============================================================
+Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca musicale in tempo reale, il tutto con puro HTML, CSS e JavaScript. Nessun framework da installare, nessuna registrazione richiesta — i brani, gli album e le anteprime audio arrivano direttamente dalla iTunes Search API di Apple.
 
-Un clone fedele dell'interfaccia di Spotify, costruito
-con HTML, CSS e JavaScript puro. Nessun framework,
-nessuna dipendenza da installare, nessuna registrazione
-richiesta. I dati musicali reali (brani, album, copertine,
-anteprime audio) provengono dalla iTunes Search API di Apple.
+---
 
-------------------------------------------------------------
-DEMO RAPIDA
-------------------------------------------------------------
-1. Apri index.html in un browser moderno
-2. Inserisci qualsiasi nome utente e clicca ACCEDI
+## Indice dei Contenuti
+1. [💻 Demo rapida](#-demo-rapida)
+2. [📋 Funzionalità](#-funzionalità)
+3. [🧾 Struttura del progetto](#-struttura-del-progetto)
+4. [📱 Tecnologie](#-tecnologie)
+5. [🏛️ Architettura](#️-architettura)
+6. [🧰 Limiti tecnici](#-limiti-tecnici)
+7. [🪛 Miglioramenti futuri](#-miglioramenti-futuri)
+8. [📌 Crediti](#-crediti)
+
+---
+
+## 💻 Demo rapida
+
+1. Apri `login.html` in un browser moderno (o usa un server locale — vedi sotto)
+2. Inserisci qualsiasi nome utente e clicca **ACCEDI**
 3. Esplora, cerca, ascolta le anteprime da 30 secondi
 
-------------------------------------------------------------
-TECNOLOGIE
-------------------------------------------------------------
-- HTML5 / CSS3 / JavaScript ES2020 (vanilla, no framework)
-- Bootstrap 5.3 (layout e componenti UI)
-- Bootstrap Icons 1.11 (icone)
-- Google Fonts — Montserrat
-- iTunes Search API (dati musicali, zero API key)
-- Web Audio API — elemento <audio> nativo per le anteprime
-- localStorage (persistenza like, playlist, profilo)
+> **Nota:** aprire i file HTML con doppio clic potrebbe bloccare l'audio in alcuni browser.
+> Per evitarlo, usa l'estensione **Live Server** di VS Code: apri la cartella del progetto in VS Code e clicca **Go Live** in basso a destra.
 
-------------------------------------------------------------
-STRUTTURA FILE
-------------------------------------------------------------
-  index.html        Struttura HTML dell'app
-  style.css         Tema scuro, layout, componenti
-  app.js            Logica dell'applicazione
-  itunes-api.js     Wrapper iTunes Search API + normalizzatori
-  data.js           Utility: make(), createCover(), formatDuration()
+---
 
-------------------------------------------------------------
-COME FUNZIONA
-------------------------------------------------------------
-L'app usa un'architettura SPA (Single Page Application)
-senza router esterno. La funzione showPage() gestisce la
-navigazione sostituendo il contenuto del div #contentArea
-tramite replaceChildren() — mai innerHTML con dati dinamici.
+## 📋 Funzionalità
 
-Tutti gli elementi DOM vengono costruiti con la funzione
-make(tag, props, ...children) definita in data.js. Accetta
-classi, testo, stili e handler come props, e appende i figli
-automaticamente. I testi dinamici passano sempre per
-textContent (XSS-safe by default); gli event listener
-vengono registrati con addEventListener, senza onclick inline.
+### Autenticazione
 
-Le chiamate API sono asincrone (async/await) con una cache
-in memoria (_cache) per non ripetere la stessa richiesta.
-I dati vengono normalizzati da formato iTunes al formato
-interno dell'app tramite normalizeTrack() e normalizeAlbum().
+- Login con qualsiasi nome utente (nessuna registrazione)
+- Auto-login al riavvio tramite `localStorage`
+- Modifica nome utente e foto profilo (upload da file locale)
+- Logout dal profilo
 
-Il player usa l'elemento <audio> HTML5: riproduce i
-preview_url di 30 secondi forniti da iTunes gratuitamente.
+### Home
 
-------------------------------------------------------------
-ARCHITETTURA INTERNA
-------------------------------------------------------------
-make(tag, props, ...children)
-  Utility centrale in data.js. Riduce la ripetizione nella
-  costruzione del DOM. Props speciali: class → className,
-  text → textContent, style oggetto → Object.assign(el.style),
-  onX funzione → addEventListener.
+- Saluto dinamico (Buongiorno / Buon pomeriggio / Buonasera)
+- Quick-grid con 6 playlist in evidenza
+- Sezione "Playlist in evidenza" con 8 playlist virtuali
+- Sezione "Album popolari" caricata da iTunes in tempo reale
+- Pulsante play rapido su ogni card (hover)
 
-renderTrackList(tracks) / makeTrackRow(track, index, ids)
-  renderTrackList registra i track nel _trackRegistry globale
-  e delega ogni riga a makeTrackRow. Il doppio click chiude
-  su ids (array di id) via closure — nessun JSON serializzato
-  negli attributi HTML.
+### Ricerca
 
-makePlaylistHeader(coverSrc, type, title, ...metaNodes)
-  Helper condiviso da renderAlbum, renderPlaylist,
-  renderUserPlaylist e renderLikedTracks per evitare
-  la ripetizione dell'intestazione con copertina.
+- Barra di ricerca con debounce 400 ms
+- Risultati in tempo reale: brani + album da iTunes API
+- Griglia di 12 generi musicali (Pop, Rock, Hip Hop, Jazz…)
+- Click su un genere → lista brani reali da iTunes
 
-makeCard(cover, title, description, page)
-  Card cliccabile per album e playlist. Ritorna un DOM element
-  (non una stringa HTML), con play overlay integrato.
+### Player musicale
 
-_trackRegistry = Map<id, TrackObject>
-  Popolato da renderTrackList a ogni render. Permette a
-  toggleLike e playTrackInList di recuperare l'oggetto
-  track completo a partire dall'id.
+- Anteprima audio reale da 30 secondi
+- Play / Pausa, brano precedente / successivo
+- Seek sulla barra di avanzamento
+- Shuffle e Repeat
+- Controllo volume con mute
+- Icona 🔇 sui brani senza anteprima disponibile
 
-------------------------------------------------------------
-MIGLIORAMENTI FUTURI
-------------------------------------------------------------
+### Brani che ti piacciono
 
-[ ] AUTENTICAZIONE REALE
-    Integrare Spotify Web API con OAuth PKCE per:
-    - Riproduzione completa dei brani (Spotify Premium)
-    - Sincronizzazione like con la libreria Spotify
-    - Accesso alle playlist personali dell'utente
-    - Top chart personalizzati
+- Like/Unlike su qualsiasi brano (dalla tracklist o dal player)
+- Persistenti tra sessioni via `localStorage`
+- Pagina dedicata con lista completa
 
-[ ] AGGIUNTA BRANI ALLE PLAYLIST
-    Bottone "Aggiungi a playlist" nel menu contestuale
-    di ogni brano (tasto destro o icona tre puntini)
+### Libreria & Playlist utente
 
-[ ] PAGINA ARTISTA
-    - Discografia completa
-    - Brani più popolari
-    - Artisti simili
+- Crea playlist con nome personalizzato
+- Playlist salvate in `localStorage`
+- Sidebar con accesso diretto a ogni playlist
 
-[ ] PLAYER MIGLIORATO
-    - Visualizzazione testi (Lyrics) tramite API esterna
-    - Coda di riproduzione visibile e modificabile
-    - Mini-player in mobile con swipe per cambiare brano
-    - Crossfade tra brani
+---
 
-[ ] RICERCA AVANZATA
-    - Filtri per genere, anno, durata
-    - Ricerca per artista con pagina dedicata
-    - Suggerimenti di ricerca in tempo reale
+## 🧾 Struttura del progetto
 
-[ ] OFFLINE / PWA
-    - Service Worker per funzionamento offline
-    - Installabile come app sul desktop e mobile
-    - Cache delle copertine già visualizzate
+```
+├── login.html           Schermata di accesso
+├── home.html            Home page
+├── search.html          Ricerca e generi
+├── liked.html           Brani che ti piacciono
+└── assets/
+    ├── css/
+    │   └── style.css    Tema scuro, layout, componenti
+    └── js/
+        ├── data.js          Utility: make(), createCover(), formatDuration()
+        ├── itunes-api.js    Wrapper iTunes Search API + normalizzatori
+        ├── app.js           Logica condivisa (player, like, playlist)
+        ├── home.js          Rendering Home
+        ├── search.js        Rendering Ricerca
+        ├── liked.js         Rendering Brani salvati
+        └── login.js         Gestione login
+```
 
-[ ] TEMI
-    - Tema chiaro
-    - Cambio colore accento (non solo verde Spotify)
+---
 
-[ ] BACKEND OPZIONALE
-    - Server Node.js/Python per aggirare i limiti CORS
-    - Database per salvare like e playlist nel cloud
-    - Sistema di account multi-utente reale
+## 📱 Tecnologie
 
-[ ] ACCESSIBILITÀ
-    - Navigazione completa da tastiera
-    - Attributi ARIA sugli elementi interattivi
-    - Supporto screen reader
+| Tecnologia                       | Utilizzo                                  |
+| -------------------------------- | ----------------------------------------- |
+| HTML5 / CSS3 / JavaScript ES2020 | Base del progetto (vanilla, no framework) |
+| Bootstrap 5.3                    | Layout e componenti UI                    |
+| Bootstrap Icons 1.11             | Icone                                     |
+| Google Fonts — Montserrat        | Tipografia                                |
+| iTunes Search API                | Dati musicali (gratuita, zero API key)    |
+| Web Audio API (`<audio>`)        | Riproduzione anteprime                    |
+| `localStorage`                   | Persistenza like, playlist, profilo       |
 
-[ ] TEST
-    - Unit test per le funzioni di normalizzazione dati
-    - Test di integrazione per le chiamate API
-    - Test E2E con Playwright o Cypress
+---
 
-------------------------------------------------------------
-NOTE TECNICHE
-------------------------------------------------------------
-- Le anteprime di 30s sono fornite gratuitamente da iTunes
-  e non richiedono autenticazione. Non tutti i brani hanno
-  un preview_url: in quel caso compare l'icona 🔇.
+## 🏛️ Architettura
 
-- La cache in memoria viene azzerata ad ogni ricarica
-  della pagina. Per una cache persistente si potrebbe
-  usare sessionStorage o un Service Worker.
+Il progetto è una **multi-page application** con un file HTML per ogni schermata. La logica condivisa (player, like, playlist utente) vive in `app.js`; ogni pagina ha il proprio file JS dedicato.
 
-- L'app funziona aprendo index.html direttamente dal
-  filesystem (file://) oppure tramite un server locale
-  (es. VS Code Live Server, python -m http.server).
+### Helper DOM — `make(tag, className, text)` e `append(parent, ...children)`
 
-- Il rendering non usa mai innerHTML con dati dinamici.
-  Tutti i contenuti passano per textContent o setAttribute,
-  rendendo l'app immune agli attacchi XSS.
+Due utility in `data.js` che sostituiscono `innerHTML`. `make()` crea un elemento con classe e testo opzionali — il testo passa sempre per `textContent` (XSS-safe). Attributi ed eventi si impostano dopo la creazione. `append()` aggiunge figli a un genitore saltando automaticamente i valori `null`/`false`, utile per i nodi condizionali.
 
-------------------------------------------------------------
-CREDITI
-------------------------------------------------------------
-- Dati musicali: iTunes Search API (Apple Inc.)
+### Cache API — `_cache`
+
+Oggetto `chiave → Promise` in memoria che evita di ripetere la stessa chiamata iTunes nella stessa sessione.
+
+### Track Registry — `_trackRegistry`
+
+`Map<id, TrackObject>` popolata ad ogni render della tracklist. Permette a `toggleLike` e `playTrackInList` di recuperare l'oggetto brano completo a partire dall'id, senza serializzare dati negli attributi HTML.
+
+---
+
+## 🧰 Limiti tecnici
+
+- **Anteprime da 30 s**: iTunes fornisce solo preview; le tracce senza preview mostrano 🔇
+- **Nessun backend**: utenti, password e playlist esistono solo nel `localStorage` del browser
+- **Cache in memoria**: si azzera ad ogni ricarica della pagina
+- **CORS audio**: alcune CDN Apple potrebbero avere restrizioni in certi browser
+
+---
+
+## 🪛 Miglioramenti futuri
+
+- [ ] Integrazione Spotify Web API con OAuth PKCE (riproduzione completa)
+- [ ] "Aggiungi a playlist" dal menu contestuale di ogni brano
+- [ ] Pagina artista con discografia e artisti simili
+- [ ] Coda di riproduzione visibile e modificabile
+- [ ] PWA con Service Worker per uso offline
+- [ ] Tema chiaro e cambio colore accento
+- [ ] Navigazione completa da tastiera (accessibilità ARIA)
+- [ ] Test unitari e E2E (Playwright / Cypress)
+
+---
+
+## 📌 Crediti
+
+- Dati musicali: [iTunes Search API](https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/) (Apple Inc.)
 - UI ispirata a: Spotify Web Player
 - Icone: Bootstrap Icons
 - Font: Montserrat (Google Fonts)
