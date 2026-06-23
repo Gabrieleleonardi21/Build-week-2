@@ -36,6 +36,8 @@ async function handleLogin(e) {
 
     const displayName = isEmail ? user.split('@')[0] : user;
     localStorage.setItem('display_name', displayName);
-    sessionStorage.setItem('just_logged_in', '1');
+    if (!localStorage.getItem('profile_join_date')) {
+        localStorage.setItem('profile_join_date', new Date().toISOString());
+    }
     location.href = 'home.html';
 }
