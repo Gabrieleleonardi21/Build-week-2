@@ -779,6 +779,33 @@ body {
   font-size: 14px;
 }
 
+.profile-bio {
+  margin-top: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-width: 480px;
+}
+
+.profile-details-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.profile-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--spotify-light-gray);
+}
+
+.profile-detail-item i {
+  font-size: 14px;
+  color: var(--spotify-green);
+}
+
 .playlist-actions-row {
   display: flex;
   align-items: center;

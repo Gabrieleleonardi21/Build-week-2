@@ -7,6 +7,9 @@
 const state = {
   displayName: null,
   profilePhoto: null,
+  bio: null,
+  location: null,
+  joinDate: null,
   currentTrack: null,
   currentPlaylist: [],
   currentIndex: 0,
@@ -54,6 +57,12 @@ function loadPersistedData() {
   );
   state.profilePhoto = localStorage.getItem("profile_photo") || null;
   state.displayName = localStorage.getItem("display_name");
+  state.bio = localStorage.getItem("profile_bio") || null;
+  state.location = localStorage.getItem("profile_location") || null;
+  if (!localStorage.getItem("profile_join_date")) {
+    localStorage.setItem("profile_join_date", new Date().toISOString());
+  }
+  state.joinDate = localStorage.getItem("profile_join_date");
 }
 
 function saveLikedTracks() {
@@ -468,12 +477,35 @@ function renderProfile(container) {
 
   const metaText = `${state.userPlaylists.length} playlist • ${likedCount} brani salvati`;
   const headerInfo = make("div", "playlist-header-info");
-  append(
-    headerInfo,
+
+  const metaNodes = [
     make("div", "playlist-type", "Profilo"),
     make("div", "playlist-name-large", state.displayName),
-    make("div", "playlist-meta", metaText),
-  );
+  ];
+
+  if (state.bio) {
+    const bioEl = make("div", "playlist-meta profile-bio", state.bio);
+    metaNodes.push(bioEl);
+  }
+
+  const detailsRow = make("div", "playlist-meta profile-details-row");
+  if (state.location) {
+    const locEl = make("span", "profile-detail-item");
+    append(locEl, make("i", "bi bi-geo-alt-fill"), ` ${state.location}`);
+    detailsRow.append(locEl);
+  }
+  if (state.joinDate) {
+    const date = new Date(state.joinDate);
+    const formatted = date.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+    const joinEl = make("span", "profile-detail-item");
+    append(joinEl, make("i", "bi bi-calendar3"), ` Iscritto da ${formatted}`);
+    detailsRow.append(joinEl);
+  }
+  if (detailsRow.childElementCount > 0) metaNodes.push(detailsRow);
+
+  metaNodes.push(make("div", "playlist-meta mt-1", metaText));
+
+  append(headerInfo, ...metaNodes);
   const header = append(make("div", "playlist-header"), avatarEl, headerInfo);
 
   const editBtn = make("button", "btn btn-spotify");
@@ -518,6 +550,9 @@ function renderProfile(container) {
 function logout() {
   localStorage.removeItem("display_name");
   localStorage.removeItem("profile_photo");
+  localStorage.removeItem("profile_bio");
+  localStorage.removeItem("profile_location");
+  localStorage.removeItem("profile_join_date");
   localStorage.removeItem("current_track");
   audio.pause();
   audio.src = "";
@@ -556,6 +591,8 @@ let tempProfilePhoto = null;
 function openProfileModal() {
   tempProfilePhoto = state.profilePhoto;
   document.getElementById("editDisplayName").value = state.displayName;
+  document.getElementById("editBio").value = state.bio || "";
+  document.getElementById("editLocation").value = state.location || "";
   updatePhotoPreview(state.profilePhoto);
   new bootstrap.Modal(document.getElementById("profileModal")).show();
 }
@@ -589,6 +626,16 @@ function saveProfile() {
     state.displayName = name;
     localStorage.setItem("display_name", name);
   }
+  const bio = document.getElementById("editBio").value.trim();
+  state.bio = bio || null;
+  if (bio) localStorage.setItem("profile_bio", bio);
+  else localStorage.removeItem("profile_bio");
+
+  const location = document.getElementById("editLocation").value.trim();
+  state.location = location || null;
+  if (location) localStorage.setItem("profile_location", location);
+  else localStorage.removeItem("profile_location");
+
   state.profilePhoto = tempProfilePhoto;
   if (tempProfilePhoto) localStorage.setItem("profile_photo", tempProfilePhoto);
   else localStorage.removeItem("profile_photo");
