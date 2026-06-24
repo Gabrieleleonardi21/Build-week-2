@@ -45,13 +45,19 @@
             </nav>
 
             <div class="playlist-actions">
-                <a href="#" class="nav-link" id="createPlaylistBtn">
-                    <div class="action-icon"><i class="bi bi-plus-lg"></i></div>
-                    <span>Crea playlist</span>
-                </a>
+                
+                
+                    </a>
                 <a href="liked.html" class="nav-link" data-page="liked">
                     <div class="action-icon liked-icon"><i class="bi bi-heart-fill"></i></div>
                     <span>Brani che ti piacciono</span>
+                </a>
+                
+                
+                <a href="#" class="nav-link" id="createPlaylistBtn">
+                    <div class="action-icon"><i class="bi bi-plus-lg"></i></div>
+                    <span>Crea playlist</span>
+                
                 </a>
             </div>
 
@@ -175,6 +181,26 @@
             </div>
         </div>
     </div>
+
+<!-- MODAL RINOMINA PLAYLIST -->
+<div class="modal fade" id="renamePlaylistModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Rinomina playlist</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control login-input" id="renamePlaylistInput" placeholder="Nuovo nome">
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-spotify" id="confirmRenameBtn">Rinomina</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     <!-- MODAL CONFERMA (azioni distruttive, es. elimina playlist) -->
     <div class="modal fade" id="confirmModal" tabindex="-1">

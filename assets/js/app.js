@@ -36,6 +36,9 @@ let pipEls = null;
 // Timer per distinguere click singolo (apri modale) da doppio click (riproduci)
 let _trackDetailTimer = null;
 
+//
+
+
 // Cache per le risposte API — evita chiamate duplicate e fa da fallback
 // quando l'API iTunes è irraggiungibile o limita le richieste (HTTP 403).
 // Livelli: 1) memoria  2) localStorage entro la TTL  3) chiamata API
@@ -524,10 +527,36 @@ function renderUserPlaylist(container, playlistId) {
   deleteBtn.title = "Elimina playlist";
   deleteBtn.addEventListener("click", () => deletePlaylist(playlistId));
   deleteBtn.append(make("i", "bi bi-trash"));
+  const renameBtn = make("button", "btn-icon");
+  renameBtn.style.fontSize = "32px";
+  renameBtn.title = "Rinomina playlist";
+  
+  renameBtn.addEventListener("click", () => {
+    document.getElementById("renamePlaylistInput").value = playlist.name;
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("renamePlaylistModal"));
+    const confirmBtn = document.getElementById("confirmRenameBtn");
+    const handler = () => {
+      const newName = document.getElementById("renamePlaylistInput").value.trim();
+      if (newName) {
+        playlist.name = newName;
+        saveUserPlaylists();
+        renderUserPlaylists();
+        refreshCurrentPage();
+      }
+      modal.hide();
+      confirmBtn.removeEventListener("click", handler);
+    };
+    confirmBtn.addEventListener("click", handler);
+    modal.show();
+  });
+  
+
+
+  renameBtn.append(make("i", "bi bi-pencil"));
 
   container.replaceChildren(
     makePlaylistHeader(cover, "Playlist", playlist.name, meta),
-    append(make("div", "playlist-actions-row"), playBtn, deleteBtn),
+    append(make("div", "playlist-actions-row"), playBtn, renameBtn, deleteBtn),
     tracksEl,
   );
 }
@@ -1433,6 +1462,14 @@ function createPlaylist() {
   bootstrap.Modal.getInstance(document.getElementById("playlistModal")).hide();
   saveUserPlaylists();
   renderUserPlaylists();
+}
+
+function openRenamePlaylist(id, currentName) {
+  _renamePlaylistId = id;
+  document.getElementById("newPlaylistName").value = currentName;
+  document.querySelector("#playlistModal .modal-title").textContent = "Rinomina playlist";
+  document.getElementById("confirmPlaylistBtn").textContent = "Rinomina";
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("playlistModal")).show();
 }
 
 function renderUserPlaylists() {
