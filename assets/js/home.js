@@ -107,7 +107,7 @@ async function renderHome(container) {
     // Playlist utente (sostituite la sezione "libreria" rimossa dalla MPA)
     if (state.userPlaylists.length > 0) {
         const userGrid = make('div', 'card-grid');
-        state.userPlSaylists.forEach(p => {
+        state.userPlaylists.forEach(p => {
             const cover = "assets/img/ppp.jpg";
             userGrid.append(makeCard(cover, p.name, `${p.tracks.length} brani`, 'userplaylist-' + p.id));
         });
