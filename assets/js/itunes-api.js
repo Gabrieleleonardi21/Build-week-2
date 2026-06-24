@@ -17,6 +17,23 @@ const VIRTUAL_PLAYLISTS = [
     { id: 'vp_rnb',      title: 'R&B Soul',     description: 'Soul, R&B e groove',               term: 'rnb soul',           color1: '#6a4c93', color2: '#1982c4' },
 ];
 
+// Brano locale, non viene da iTunes: va aggiunto a mano alla playlist "Top Italia".
+// Stesso formato "grezzo" di un risultato iTunes, così normalizeTrack() lo elabora
+// come un brano qualsiasi (id e artistId sono stringhe finte, non numeri iTunes
+// reali, per non collidere mai con un id vero e per essere riconoscibili dopo).
+const CUSTOM_TRACK_DARIO = {
+    wrapperType: 'track',
+    trackId: 'custom-dario-1',
+    trackName: 'The Dark Side of Dario',
+    artistName: 'Dario Del Giudice',
+    artistId: 'custom-dario-artist',
+    collectionName: 'The Dark Side of Dario',
+    trackTimeMillis: 204000,
+    artworkUrl100: 'assets/img/santino.png',
+    previewUrl: 'assets/audio/the-dark-side-of-dario.mp3',
+    trackViewUrl: null,
+}
+
 // Generi musicali con termine di ricerca iTunes
 const GENRES = [
     { name: 'Pop',         term: 'pop',         color: 'linear-gradient(135deg, #ff6b35, #c9184a)' },
@@ -90,7 +107,10 @@ async function itunesGetPlaylistTracks(playlistId) {
     const vp = VIRTUAL_PLAYLISTS.find(p => p.id === playlistId);
     if (!vp) return [];
     const items = await itunesSearch(vp.term, 'song', 25);
-    return items.filter(i => i.wrapperType === 'track' && i.trackId);
+    const tracks =  items.filter(i => i.wrapperType === 'track' && i.trackId);
+
+    if (playlistId === 'vp_top_it') tracks.unshift(CUSTOM_TRACK_DARIO);
+    return tracks;
 }
 
 async function itunesGetTopPodcasts(limit = 8) {
