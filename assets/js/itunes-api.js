@@ -123,6 +123,7 @@ function normalizeTrack(item) {
         duration: Math.round((item.trackTimeMillis || 0) / 1000),
         cover,
         previewUrl: item.previewUrl || null,
+        trackViewUrl: item.trackViewUrl || null,
     };
 }
 
