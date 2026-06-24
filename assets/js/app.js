@@ -19,7 +19,6 @@ const state = {
   volume: 0.7,
   likedTracks: new Map(), // Map<id, TrackObject> — persistito in localStorage
   userPlaylists: [], // [{ id, name, tracks: [] }] — persistito in localStorage
-  recentTracks: [], //Salva gli ascolti recenti per mostrarli nella Home
   currentPage: null, // sub-pagina attiva (album-123, genre-Pop, profile, ecc.) — null = pagina default
   lastSearchQuery: "", // ultima query di ricerca, ripristinata al refresh della pagina search
 };
@@ -110,9 +109,6 @@ function loadPersistedData() {
   state.userPlaylists = JSON.parse(
     localStorage.getItem("user_playlists") || "[]",
   );
-  state.recentTracks = JSON.parse(
-    localStorage.getItem("recent_tracks") || "[]",
-  );
   state.profilePhoto = localStorage.getItem("profile_photo") || null;
   state.displayName = localStorage.getItem("display_name");
   state.bio = localStorage.getItem("profile_bio") || null;
@@ -127,13 +123,6 @@ function saveLikedTracks() {
   localStorage.setItem(
     "liked_tracks",
     JSON.stringify([...state.likedTracks.entries()]),
-  );
-}
-
-function saveRecentTracks() {
-  localStorage.setItem(
-    "recent_tracks",
-    JSON.stringify(state.recentTracks)
   );
 }
 
@@ -1283,7 +1272,6 @@ function refreshPipUI() {
 
 function playTrack(track) {
   if (!track) return;
-  addToRecentTracks(track);
   state.currentTrack = track;
   state.isPlaying = false;
 
@@ -1408,16 +1396,8 @@ function updateVolumeIcon() {
 }
 
 // ============================================
-// LIKE e RECENTI — salvati in localStorage
+// LIKE — salvati in localStorage
 // ============================================
-function addToRecentTracks(track) {
-  state.recentTracks = state.recentTracks.filter(
-    t => t.id !== track.id
-  );
-  state.recentTracks.unshift(track);
-  state.recentTracks = state.recentTracks.slice(0, 5);
-  saveRecentTracks();
-}
 
 function toggleLike(trackId) {
   if (state.likedTracks.has(trackId)) {
