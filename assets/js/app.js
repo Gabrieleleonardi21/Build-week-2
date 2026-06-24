@@ -163,6 +163,7 @@ function initShell(pageRenderer) {
   setupPlayer();
   setupPip();
   setupNavigation();
+  setupThemeSwitcher(); // bottone tavolozza + modale (assets/js/theme.js)
   renderUserPlaylists();
   restorePlayerState();
 }
@@ -673,14 +674,10 @@ function renderProfile(container) {
   if (state.userPlaylists.length > 0) {
     const grid = make("div", "card-grid");
     state.userPlaylists.forEach((p) => {
-      const cover = createCover(
-        p.name.substring(0, 2).toUpperCase(),
-        "#1db954",
-        "#191414",
-      );
+      // Stessa cover fissa usata da renderUserPlaylist() per la pagina della singola playlist
       grid.append(
         makeCard(
-          cover,
+          "assets/img/ppp.jpg",
           p.name,
           `${p.tracks.length} brani`,
           "userplaylist-" + p.id,
@@ -1176,6 +1173,12 @@ async function openPipWindow() {
     clone.href = original.href;
     pipWindow.document.head.append(clone);
   });
+
+  // Il documento della PiP è separato da quello principale: le variabili del
+  // tema, applicate da applyTheme() come stile inline su <html>, vanno copiate
+  // a mano, altrimenti la PiP mostra sempre i colori di default di style.css
+  pipWindow.document.documentElement.style.cssText =
+    document.documentElement.style.cssText;
 
   buildPipDocument(pipWindow.document.body);
   refreshPipUI();

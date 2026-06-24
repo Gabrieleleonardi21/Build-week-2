@@ -13,6 +13,7 @@
   --spotify-white: #ffffff;
   --sidebar-bg: #000000;
   --player-bg: #181818;
+  --topbar-bg: rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -41,7 +42,13 @@ body {
 .login-screen {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, #1db954 0%, #121212 100%);
+  /* Usa le variabili del tema (non valori fissi) così anche la schermata di
+     login riflette il colore scelto dall'utente nell'app */
+  background: linear-gradient(
+    135deg,
+    var(--spotify-green) 0%,
+    var(--spotify-dark) 100%
+  );
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -206,7 +213,7 @@ body {
 
 .logo-container i {
   font-size: 36px;
-  color: var(--spotify-white);
+  color: var(--spotify-green);
 }
 
 /* Bottone hamburger — nascosto di default, attivo solo su mobile (≤480px) */
@@ -309,7 +316,7 @@ body {
 .top-bar {
   position: sticky;
   top: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: var(--topbar-bg);
   backdrop-filter: blur(10px);
   padding: 16px 32px;
   display: flex;
@@ -337,14 +344,14 @@ body {
 }
 
 .nav-btn:hover {
-  background-color: rgba(0, 0, 0, 0.9);
+  background-color: var(--spotify-green);
 }
 
 .user-btn {
   display: flex;
   align-items: center;
   gap: 8px;
-  background-color: rgba(0, 0, 0, 0.7);
+  background-color: var(--spotify-green);
   color: var(--spotify-white);
   border: none;
   padding: 4px 12px 4px 4px;
@@ -1390,8 +1397,71 @@ html.pip-mode body {
 }
 
 /* ============================================
-   MODALE CONDIVISIONE BRANO
+   THEME SWITCHER — modal "Personalizza il tema"
    ============================================ */
+.theme-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Ogni "pallino" è un bottone: niente sfondo/bordo finché non è hover/attivo,
+   così risalta solo il cerchio colorato dentro */
+.theme-swatch {
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 10px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--spotify-white);
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+.theme-swatch:hover {
+  background-color: var(--spotify-gray);
+}
+
+/* Tema attualmente selezionato: bordo bianco attorno al bottone */
+.theme-swatch.active {
+  border-color: var(--spotify-white);
+}
+
+.theme-swatch-color {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  position: relative;
+}
+
+.theme-swatch-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Spunta visibile solo sul pallino attivo (vedi .theme-swatch.active) */
+.theme-swatch-check {
+  display: none;
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 16px;
+  color: var(--spotify-white);
+  background-color: var(--spotify-dark);
+  border-radius: 50%;
+}
+
+.theme-swatch.active .theme-swatch-check {
+  display: block;
+}
+/* MODALE CONDIVISIONE BRANO */
 .share-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
