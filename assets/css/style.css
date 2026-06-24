@@ -1460,8 +1460,8 @@ html.pip-mode body {
 
 .theme-swatch.active .theme-swatch-check {
   display: block;
-   MODALE CONDIVISIONE BRANO
-   ============================================ */
+}
+/* MODALE CONDIVISIONE BRANO */
 .share-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
