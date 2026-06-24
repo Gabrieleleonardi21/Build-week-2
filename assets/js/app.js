@@ -387,7 +387,7 @@ async function refreshCurrentPage() {
 // Prende il primo risultato iTunes per il termine della playlist e usa il suo artwork
 // ============================================
 async function getVirtualPlaylistCover(p) {
-  if (p.id === 'vp_top_it') return 'assets/img/santino.png';
+  if (p.id === "vp_top_it") return "assets/img/santino.png";
   return cached("cover_" + p.id, async () => {
     const results = await itunesSearch(p.term, "song", 1);
     const item = results[0];
@@ -576,7 +576,10 @@ function renderProfile(container) {
   }
   if (state.joinDate) {
     const date = new Date(state.joinDate);
-    const formatted = date.toLocaleDateString("it-IT", { month: "long", year: "numeric" });
+    const formatted = date.toLocaleDateString("it-IT", {
+      month: "long",
+      year: "numeric",
+    });
     const joinEl = make("span", "profile-detail-item");
     append(joinEl, make("i", "bi bi-calendar3"), ` Iscritto da ${formatted}`);
     detailsRow.append(joinEl);
@@ -701,7 +704,9 @@ function resizeImage(file, maxSize) {
         const canvas = make("canvas");
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
-        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas
+          .getContext("2d")
+          .drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/jpeg", 0.8));
       };
       img.onerror = reject;
@@ -739,10 +744,13 @@ function saveProfile() {
   // Se la quota è piena setItem lancia QuotaExceededError: lo intercettiamo
   // per non interrompere il salvataggio in silenzio e avvisare l'utente.
   try {
-    if (tempProfilePhoto) localStorage.setItem("profile_photo", tempProfilePhoto);
+    if (tempProfilePhoto)
+      localStorage.setItem("profile_photo", tempProfilePhoto);
     else localStorage.removeItem("profile_photo");
   } catch (_) {
-    alert("Spazio di archiviazione insufficiente: la foto non è stata salvata.");
+    alert(
+      "Spazio di archiviazione insufficiente: la foto non è stata salvata.",
+    );
   }
   updateUserMenu();
   bootstrap.Modal.getInstance(document.getElementById("profileModal")).hide();
@@ -918,7 +926,10 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
   row.addEventListener("click", () => {
     if (window.innerWidth < 480) return;
     clearTimeout(_trackDetailTimer);
-    _trackDetailTimer = setTimeout(() => openTrackDetailModal(track.id, ids, options), 220);
+    _trackDetailTimer = setTimeout(
+      () => openTrackDetailModal(track.id, ids, options),
+      220,
+    );
   });
 
   // Doppio click: riproduce direttamente (cancella il timer del click singolo)
@@ -1200,8 +1211,7 @@ function buildPipDocument(container) {
   progressContainer.addEventListener("click", (e) => {
     if (!state.currentTrack || !audio.duration) return;
     const rect = progressContainer.getBoundingClientRect();
-    audio.currentTime =
-      ((e.clientX - rect.left) / rect.width) * audio.duration;
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
   });
 
   // Volume: stesso pattern drag/hover dello slider principale, ma sul document della PiP
@@ -1512,7 +1522,11 @@ function renderAddPlaylistList() {
   const list = document.getElementById("addPlaylistList");
   if (state.userPlaylists.length === 0) {
     list.replaceChildren(
-      make("p", "text-secondary m-0", "Non hai ancora playlist: creane una qui sotto."),
+      make(
+        "p",
+        "text-secondary m-0",
+        "Non hai ancora playlist: creane una qui sotto.",
+      ),
     );
     return;
   }
@@ -1586,7 +1600,9 @@ function openTrackDetailModal(trackId, ids, options = {}) {
   document.getElementById("trackDetailTitle").textContent = track.title;
   document.getElementById("trackDetailArtist").textContent = track.artist;
   document.getElementById("trackDetailAlbum").textContent = track.album;
-  document.getElementById("trackDetailDuration").textContent = formatDuration(track.duration);
+  document.getElementById("trackDetailDuration").textContent = formatDuration(
+    track.duration,
+  );
 
   const modalEl = document.getElementById("trackDetailModal");
 
@@ -1602,7 +1618,18 @@ function openTrackDetailModal(trackId, ids, options = {}) {
   };
 
   document.getElementById("trackDetailAddBtn").onclick = () => {
-    modalEl.addEventListener("hidden.bs.modal", () => openAddToPlaylistModal(trackId), { once: true });
+    modalEl.addEventListener(
+      "hidden.bs.modal",
+      () => openAddToPlaylistModal(trackId),
+      { once: true },
+    );
+    bootstrap.Modal.getInstance(modalEl).hide();
+  };
+
+  document.getElementById("trackDetailShareBtn").onclick = () => {
+    modalEl.addEventListener("hidden.bs.modal", () => shareTrack(trackId), {
+      once: true,
+    });
     bootstrap.Modal.getInstance(modalEl).hide();
   };
 
@@ -1672,6 +1699,17 @@ function openTrackActionsModal(trackId, options = {}) {
     items.push(removeItem);
   }
 
+  const shareItem = make("button", "add-playlist-item");
+  shareItem.append(make("span", "", "Condividi"));
+  shareItem.append(make("i", "bi bi-share"));
+  shareItem.addEventListener("click", () => {
+    modalEl.addEventListener("hidden.bs.modal", () => shareTrack(trackId), {
+      once: true,
+    });
+    modal.hide();
+  });
+  items.push(shareItem);
+
   document.getElementById("trackActionsList").replaceChildren(...items);
   modal.show();
 }
@@ -1680,22 +1718,31 @@ function openTrackActionsModal(trackId, options = {}) {
 // CONFETTI ROSA — appaiono dopo il login
 // ============================================
 
-const _confettiCanvas = document.getElementById('glitterCanvas');
-const _confettiCtx = _confettiCanvas ? _confettiCanvas.getContext('2d') : null;
+const _confettiCanvas = document.getElementById("glitterCanvas");
+const _confettiCtx = _confettiCanvas ? _confettiCanvas.getContext("2d") : null;
 let _confettiParticles = [];
 let _confettiRunning = false;
 
 const _CONFETTI_COLORS = [
-  '#FF69B4','#FF69B4','#FF69B4',
-  '#FFB6C1','#FFB6C1','#FFB6C1',
-  '#FF1493','#FF1493',
-  '#FFC0CB','#FFC0CB',
-  '#FF85C2',
-  '#ffffff','#ffffff',
-  '#FFE4F0'
+  "#FF69B4",
+  "#FF69B4",
+  "#FF69B4",
+  "#FFB6C1",
+  "#FFB6C1",
+  "#FFB6C1",
+  "#FF1493",
+  "#FF1493",
+  "#FFC0CB",
+  "#FFC0CB",
+  "#FF85C2",
+  "#ffffff",
+  "#ffffff",
+  "#FFE4F0",
 ];
 
-function _rnd(min, max) { return Math.random() * (max - min) + min; }
+function _rnd(min, max) {
+  return Math.random() * (max - min) + min;
+}
 
 function _resizeConfetti() {
   if (!_confettiCanvas) return;
@@ -1712,9 +1759,10 @@ function _createConfettiParticle() {
     speedX: _rnd(-1.5, 1.5),
     rotation: _rnd(0, 360),
     rotationSpeed: _rnd(-5, 5),
-    color: _CONFETTI_COLORS[Math.floor(Math.random() * _CONFETTI_COLORS.length)],
+    color:
+      _CONFETTI_COLORS[Math.floor(Math.random() * _CONFETTI_COLORS.length)],
     opacity: _rnd(0.7, 1),
-    shape: Math.random() < 0.6 ? 'rect' : 'circle'
+    shape: Math.random() < 0.6 ? "rect" : "circle",
   };
 }
 
@@ -1732,14 +1780,14 @@ function _confettiLoop() {
     _confettiCtx.save();
     _confettiCtx.globalAlpha = Math.max(0, p.opacity);
     _confettiCtx.translate(p.x, p.y);
-    _confettiCtx.rotate(p.rotation * Math.PI / 180);
+    _confettiCtx.rotate((p.rotation * Math.PI) / 180);
     _confettiCtx.fillStyle = p.color;
 
-    if (p.shape === 'rect') {
-      _confettiCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size * 2);
+    if (p.shape === "rect") {
+      _confettiCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 2);
     } else {
       _confettiCtx.beginPath();
-      _confettiCtx.ellipse(0, 0, p.size/2, p.size/3, 0, 0, Math.PI * 2);
+      _confettiCtx.ellipse(0, 0, p.size / 2, p.size / 3, 0, 0, Math.PI * 2);
       _confettiCtx.fill();
     }
 
@@ -1760,14 +1808,58 @@ function _confettiLoop() {
 
 function _startConfetti() {
   _confettiRunning = true;
-  setTimeout(() => { _confettiRunning = false; }, 5000);
+  setTimeout(() => {
+    _confettiRunning = false;
+  }, 5000);
 }
 
 _resizeConfetti();
-window.addEventListener('resize', _resizeConfetti);
+window.addEventListener("resize", _resizeConfetti);
 _confettiLoop();
 
-if (sessionStorage.getItem('just_logged_in')) {
-  sessionStorage.removeItem('just_logged_in');
+if (sessionStorage.getItem("just_logged_in")) {
+  sessionStorage.removeItem("just_logged_in");
   _startConfetti();
+}
+
+// ============================================
+// CONDIVISIONE BRANO
+// ============================================
+
+function shareTrack(trackId) {
+  const track =
+    _trackRegistry.get(trackId) ||
+    (state.currentTrack?.id === trackId ? state.currentTrack : null);
+  if (!track) return;
+
+  const url =
+    track.trackViewUrl ||
+    `https://music.apple.com/search?term=${encodeURIComponent(track.title + " " + track.artist)}`;
+  const text = `${track.title} – ${track.artist}`;
+
+  _openShareModal(track, url, text);
+}
+
+function _openShareModal(track, url, text) {
+  document.getElementById("shareModalTitle").textContent = track.title;
+  document.getElementById("shareModalArtist").textContent = track.artist;
+
+  const encodedText = encodeURIComponent(text);
+  const encodedUrl = encodeURIComponent(url);
+
+  document.getElementById("shareWhatsApp").href =
+    `https://wa.me/?text=${encodeURIComponent(text + "\n" + url)}`;
+  document.getElementById("shareTelegram").href =
+    `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
+  document.getElementById("shareTwitter").href =
+    `https://x.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+
+  document.getElementById("shareCopyBtn").onclick = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      bootstrap.Modal.getInstance(document.getElementById("shareModal")).hide();
+      showToast("Link copiato!");
+    });
+  };
+
+  new bootstrap.Modal(document.getElementById("shareModal")).show();
 }
