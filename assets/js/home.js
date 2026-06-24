@@ -105,7 +105,7 @@ async function renderHome(container) {
     ];
 
     // Playlist utente (sostituite la sezione "libreria" rimossa dalla MPA)
-    if (state.userPlaylists.length > 0) {
+    /*if (state.userPlaylists.length > 0) {
         const userGrid = make('div', 'card-grid');
         state.userPlaylists.forEach(p => {
             const cover = "assets/img/ppp.jpg";
@@ -113,7 +113,32 @@ async function renderHome(container) {
         });
         // Inserisce le playlist utente prima delle playlist in evidenza
         nodes.splice(1, 0, make('h2', 'section-title', 'Le tue playlist'), userGrid);
-    }
+    }*/
+   if (state.recentTracks.length > 0) {
+    const recentGrid = make('div', 'card-grid');
+    state.recentTracks.forEach(track => {
+        const card = make('div', 'album-card');
+        card.addEventListener('click', () => {
+            playTrack(track);
+        });
+        const img = make('img', 'album-cover');
+        img.src = track.cover;
+        img.alt = track.title;
+        append(
+            card,
+            img,
+            make('div', 'album-title', track.title),
+            make('div', 'album-description', track.artist)
+        );
+        recentGrid.append(card);
+    });
+    nodes.splice(
+        1,
+        0,
+        make('h2', 'section-title', 'Ascoltati di recente'),
+        recentGrid
+    );
+}
 
     if (uniqueAlbums.length > 0) {
         const albumGrid = make('div', 'card-grid');
