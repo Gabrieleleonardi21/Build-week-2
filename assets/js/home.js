@@ -105,16 +105,37 @@ async function renderHome(container) {
     ];
 
     // Playlist utente (sostituite la sezione "libreria" rimossa dalla MPA)
-    if (state.userPlaylists.length > 0) {
+    if (
+        state.userPlaylists.length > 0 ||
+        state.recentTracks.length > 0
+    ) {
         const userGrid = make('div', 'card-grid');
+        if (state.recentTracks.length > 0) {
+            userGrid.append(
+                makeCard(
+                    'assets/img/ppp.jpg',
+                    'Ascoltati di recente',
+                    `${state.recentTracks.length} brani`,
+                    'recent-tracks'
+                )
+            );
+        }
         state.userPlaylists.forEach(p => {
             const cover = "assets/img/ppp.jpg";
-            userGrid.append(makeCard(cover, p.name, `${p.tracks.length} brani`, 'userplaylist-' + p.id));
+            userGrid.append(
+                makeCard(
+                    cover,
+                    p.name,
+                    `${p.tracks.length} brani`,
+                    'userplaylist-' + p.id
+                )
+            );
         });
-        // Inserisce le playlist utente prima delle playlist in evidenza
-        nodes.splice(1, 0, make('h2', 'section-title', 'Le tue playlist'), userGrid);
+        nodes.splice(1,0,make('h2', 'section-title', 'Le tue playlist'),
+            userGrid
+        );
     }
-  
+
     if (uniqueAlbums.length > 0) {
         const albumGrid = make('div', 'card-grid');
         uniqueAlbums.forEach(a => albumGrid.append(makeCard(a.cover, a.title, a.artist, 'album-' + a.id)));
