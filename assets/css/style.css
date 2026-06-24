@@ -671,6 +671,15 @@ body {
   font-size: 14px;
 }
 
+.track-artist-link {
+  cursor: pointer;
+}
+
+.track-artist-link:hover {
+  color: white;
+  text-decoration: underline;
+}
+
 .track-album,
 .track-duration {
   color: var(--spotify-light-gray);

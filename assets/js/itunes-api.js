@@ -105,6 +105,15 @@ async function itunesGetTopPodcasts(limit = 8) {
     );
 }
 
+// Recupera gli album di un artista tramite il suo ID
+async function itunesGetArtist(artistId) {
+    const params = new URLSearchParams({ id: artistId, entity: 'album', limit: 6, country: 'it' });
+    const results = await _jsonp(`${ITUNES_API}/lookup`, params);
+    const artist = results.find(r => r.wrapperType === 'artist');
+    const albums = results.filter(r => r.wrapperType === 'collection' && r.collectionId);
+    return { artist, albums };
+}
+
 // ============================================
 // NORMALIZZATORI (formato iTunes → formato app)
 // ============================================
@@ -118,6 +127,7 @@ function normalizeTrack(item) {
         id: String(item.trackId),
         title: item.trackName || '',
         artist: item.artistName || '',
+        artistId: String(item.artistId || ''),
         album: item.collectionName || '',
         albumId: String(item.collectionId || ''),
         duration: Math.round((item.trackTimeMillis || 0) / 1000),

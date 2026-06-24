@@ -346,6 +346,8 @@ async function showPage(page) {
       renderRecentTracks(content);
     else if (page.startsWith("genre-"))
       await renderGenre(content, page.slice(6));
+    else if (page.startsWith("artist-"))
+      await renderArtist(content, page.slice(7));
   } catch (e) {
     showRenderError(content, e);
   }
@@ -484,6 +486,34 @@ async function renderAlbum(container, albumId) {
     append(make("div", "playlist-actions-row"), playBtn, moreBtn),
     renderTrackList(tracks, true),
   );
+}
+
+async function renderArtist(container, artistId) {
+  const { artist, albums } = await cached("artist_" + artistId, () =>
+    itunesGetArtist(artistId),
+  );
+  if (!artist) {
+    container.replaceChildren(
+      make("p", "text-secondary mt-4", "Artista non trovato."),
+    );
+    return;
+  }
+
+  const meta = make("div", "playlist-meta");
+  append(meta, make("span", "", artist.primaryGenreName || ""));
+
+  const albumGrid = make("div", "card-grid");
+  albums.map(normalizeAlbum).filter(Boolean).forEach((a) =>
+    albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
+  );
+
+  const nodes = [
+    makePlaylistHeader(null, "Artista", artist.artistName, meta),
+  ];
+  if (albumGrid.childElementCount > 0) {
+    nodes.push(make("h2", "section-title", "Album"), albumGrid);
+  }
+  container.replaceChildren(...nodes);
 }
 
 async function renderPlaylist(container, playlistId) {
@@ -994,8 +1024,16 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
   cover.src = track.cover;
   cover.alt = track.title;
 
+  const artistEl = make("div", "track-artist-small", track.artist);
+  if (track.artistId) {
+    artistEl.classList.add("track-artist-link");
+    artistEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      navigateTo("artist-" + track.artistId);
+    });
+  }
   const infoText = make("div", "track-info-text");
-  append(infoText, nameDiv, make("div", "track-artist-small", track.artist));
+  append(infoText, nameDiv, artistEl);
 
   const info = make("div", "track-info");
   append(info, cover, infoText);
