@@ -33,6 +33,9 @@ const _trackRegistry = new Map();
 let pipWindow = null;
 let pipEls = null;
 
+// Timer per distinguere click singolo (apri modale) da doppio click (riproduci)
+let _trackDetailTimer = null;
+
 // Cache per le risposte API — evita chiamate duplicate e fa da fallback
 // quando l'API iTunes è irraggiungibile o limita le richieste (HTTP 403).
 // Livelli: 1) memoria  2) localStorage entro la TTL  3) chiamata API
@@ -491,11 +494,7 @@ function renderUserPlaylist(container, playlistId) {
   const playlist = state.userPlaylists.find((p) => p.id === playlistId);
   if (!playlist) return;
 
-  const cover = createCover(
-    playlist.name.substring(0, 2).toUpperCase(),
-    "#1db954",
-    "#191414",
-  );
+  const cover = "assets/img/ppp.jpg";
   playlist.tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   // Le righe in una playlist utente mostrano anche il bottone "rimuovi"
@@ -629,11 +628,9 @@ function renderProfile(container) {
 }
 
 function logout() {
-  localStorage.removeItem("display_name");
-  localStorage.removeItem("profile_photo");
-  localStorage.removeItem("profile_bio");
-  localStorage.removeItem("profile_location");
-  localStorage.removeItem("profile_join_date");
+  // Chiude solo la sessione: il profilo (nome, foto, bio, località, join date)
+  // resta in localStorage e verrà ripristinato al login successivo.
+  localStorage.removeItem("session_active");
   localStorage.removeItem("current_track");
   audio.pause();
   audio.src = "";
@@ -690,15 +687,36 @@ function updatePhotoPreview(photo) {
   }
 }
 
-function previewProfilePhoto(e) {
+// Ridimensiona e comprime l'immagine prima di salvarla: una foto a piena
+// risoluzione come data URL satura la quota di localStorage (~5 MB). Riducendo
+// il lato max a `maxSize` px ed esportando in JPEG si ottengono pochi KB.
+function resizeImage(file, maxSize) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        // Mantiene le proporzioni rientrando in maxSize x maxSize
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const canvas = make("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function previewProfilePhoto(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    tempProfilePhoto = ev.target.result;
-    updatePhotoPreview(tempProfilePhoto);
-  };
-  reader.readAsDataURL(file);
+  tempProfilePhoto = await resizeImage(file, 256);
+  updatePhotoPreview(tempProfilePhoto);
 }
 
 function saveProfile() {
@@ -718,8 +736,14 @@ function saveProfile() {
   else localStorage.removeItem("profile_location");
 
   state.profilePhoto = tempProfilePhoto;
-  if (tempProfilePhoto) localStorage.setItem("profile_photo", tempProfilePhoto);
-  else localStorage.removeItem("profile_photo");
+  // Se la quota è piena setItem lancia QuotaExceededError: lo intercettiamo
+  // per non interrompere il salvataggio in silenzio e avvisare l'utente.
+  try {
+    if (tempProfilePhoto) localStorage.setItem("profile_photo", tempProfilePhoto);
+    else localStorage.removeItem("profile_photo");
+  } catch (_) {
+    alert("Spazio di archiviazione insufficiente: la foto non è stata salvata.");
+  }
   updateUserMenu();
   bootstrap.Modal.getInstance(document.getElementById("profileModal")).hide();
   refreshCurrentPage();
@@ -889,8 +913,19 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
     make("div", "track-duration", formatDuration(track.duration)),
   );
 
-  // Double-click usa closure su ids — no JSON inline, no onclick string
-  row.addEventListener("dblclick", () => playTrackInList(track.id, ids));
+  // Click singolo (≥480px): apre il modale dettaglio brano dopo 220ms
+  // Il timer viene cancellato se arriva un doppio click, evitando che si sovrappongano
+  row.addEventListener("click", () => {
+    if (window.innerWidth < 480) return;
+    clearTimeout(_trackDetailTimer);
+    _trackDetailTimer = setTimeout(() => openTrackDetailModal(track.id, ids, options), 220);
+  });
+
+  // Doppio click: riproduce direttamente (cancella il timer del click singolo)
+  row.addEventListener("dblclick", () => {
+    clearTimeout(_trackDetailTimer);
+    playTrackInList(track.id, ids);
+  });
   return row;
 }
 
@@ -1536,6 +1571,48 @@ function showConfirm(message, onConfirm, okLabel = "Conferma") {
   document.getElementById("confirmModalOkBtn").textContent = okLabel;
   _confirmCallback = onConfirm;
   new bootstrap.Modal(document.getElementById("confirmModal")).show();
+}
+
+// ============================================
+// MODAL DETTAGLIO BRANO (click su riga ≥480px)
+// ============================================
+function openTrackDetailModal(trackId, ids, options = {}) {
+  const track = _trackRegistry.get(trackId);
+  if (!track) return;
+
+  document.getElementById("trackDetailCover").src = track.cover;
+  document.getElementById("trackDetailCover").alt = track.title;
+  document.getElementById("trackDetailTitle").textContent = track.title;
+  document.getElementById("trackDetailArtist").textContent = track.artist;
+  document.getElementById("trackDetailAlbum").textContent = track.album;
+  document.getElementById("trackDetailDuration").textContent = formatDuration(track.duration);
+
+  const modalEl = document.getElementById("trackDetailModal");
+
+  document.getElementById("trackDetailPlayBtn").onclick = () => {
+    bootstrap.Modal.getInstance(modalEl).hide();
+    playTrackInList(trackId, ids);
+  };
+
+  _updateTrackDetailLike(trackId);
+  document.getElementById("trackDetailLikeBtn").onclick = () => {
+    toggleLike(trackId);
+    _updateTrackDetailLike(trackId);
+  };
+
+  document.getElementById("trackDetailAddBtn").onclick = () => {
+    modalEl.addEventListener("hidden.bs.modal", () => openAddToPlaylistModal(trackId), { once: true });
+    bootstrap.Modal.getInstance(modalEl).hide();
+  };
+
+  new bootstrap.Modal(modalEl).show();
+}
+
+function _updateTrackDetailLike(trackId) {
+  const liked = state.likedTracks.has(trackId);
+  const icon = document.querySelector("#trackDetailLikeBtn i");
+  icon.className = liked ? "bi bi-heart-fill" : "bi bi-heart";
+  icon.style.color = liked ? "var(--spotify-green)" : "";
 }
 
 // ============================================
