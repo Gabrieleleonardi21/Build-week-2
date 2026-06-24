@@ -51,7 +51,7 @@ async function renderHome(container) {
     const coverMap = Object.fromEntries(VIRTUAL_PLAYLISTS.map((p, i) => [p.id, vpCovers[i]]));
 
     // Quick-grid con le prime 6 playlist virtuali
-    const quickGrid = make('div', 'quick-grid');
+    /*const quickGrid = make('div', 'quick-grid');
     VIRTUAL_PLAYLISTS.slice(0, 6).forEach(p => {
         const card = make('div', 'quick-card');
         card.addEventListener('click', () => navigateTo('playlist-' + p.id));
@@ -69,7 +69,7 @@ async function renderHome(container) {
 
         append(card, img, make('div', 'quick-card-title', p.title), overlay);
         quickGrid.append(card);
-    });
+    });*/
 
     // Card-grid con tutte le playlist in evidenza
     const playlistGrid = make('div', 'card-grid');
@@ -97,7 +97,6 @@ async function renderHome(container) {
 
     const nodes = [
         make('h1', 'greeting-title', `${greeting}, ${state.displayName}`),
-        quickGrid,
         make('h2', 'section-title', 'Playlist in evidenza'),
         playlistGrid,
         make('h2', 'section-title', '🎙️ Podcast più ascoltati'),
