@@ -19,6 +19,7 @@ const state = {
   volume: 0.7,
   likedTracks: new Map(), // Map<id, TrackObject> — persistito in localStorage
   userPlaylists: [], // [{ id, name, tracks: [] }] — persistito in localStorage
+  recentTracks: [], //Salva i recenti in localStorage e li mostra in Home
   currentPage: null, // sub-pagina attiva (album-123, genre-Pop, profile, ecc.) — null = pagina default
   lastSearchQuery: "", // ultima query di ricerca, ripristinata al refresh della pagina search
 };
@@ -109,6 +110,9 @@ function loadPersistedData() {
   state.userPlaylists = JSON.parse(
     localStorage.getItem("user_playlists") || "[]",
   );
+  state.recentTracks = JSON.parse(
+    localStorage.getItem("recent_tracks") || "[]"
+  );
   state.profilePhoto = localStorage.getItem("profile_photo") || null;
   state.displayName = localStorage.getItem("display_name");
   state.bio = localStorage.getItem("profile_bio") || null;
@@ -128,6 +132,25 @@ function saveLikedTracks() {
 
 function saveUserPlaylists() {
   localStorage.setItem("user_playlists", JSON.stringify(state.userPlaylists));
+}
+
+function saveRecentTracks() {
+  localStorage.setItem(
+    "recent_tracks",
+    JSON.stringify(state.recentTracks)
+  );
+}
+
+function addRecentTrack(track) {
+  if (!track) return;
+  state.recentTracks = state.recentTracks.filter(
+    t => t.id !== track.id
+  );
+  state.recentTracks.unshift(track);
+  if (state.recentTracks.length > 10) {
+    state.recentTracks = state.recentTracks.slice(0, 10);
+  }
+  saveRecentTracks();
 }
 
 // ============================================
@@ -161,7 +184,7 @@ function restorePlayerState() {
       track.duration,
     );
     updateLikeBtn();
-  } catch (_) {}
+  } catch (_) { }
 }
 
 // ============================================
@@ -316,6 +339,8 @@ async function showPage(page) {
       await renderPlaylist(content, page.slice(9));
     else if (page.startsWith("userplaylist-"))
       renderUserPlaylist(content, page.slice(13));
+    else if (page === "recent-tracks")
+      renderRecentTracks(content);
     else if (page.startsWith("genre-"))
       await renderGenre(content, page.slice(6));
   } catch (e) {
@@ -530,6 +555,44 @@ function renderUserPlaylist(container, playlistId) {
     makePlaylistHeader(cover, "Playlist", playlist.name, meta),
     append(make("div", "playlist-actions-row"), playBtn, deleteBtn),
     tracksEl,
+  );
+}
+
+function renderRecentTracks(container) {
+  const tracks = state.recentTracks;
+  tracks.forEach(t =>
+    _trackRegistry.set(t.id, t)
+  );
+  const playBtn = make("button", "btn-play-large");playBtn.append(
+    make("i", "bi bi-play-fill")
+  );
+  playBtn.addEventListener(
+    "click",
+    () => playTracksList(tracks)
+  );
+  const meta = make(
+    "div",
+    "playlist-meta",
+    `${tracks.length} brani`
+  );
+  container.replaceChildren(
+    makePlaylistHeader(
+      null,
+      "Playlist",
+      "Ascoltati di recente",
+      meta
+    ),
+    append(
+      make("div", "playlist-actions-row"),
+      playBtn
+    ),
+    tracks.length
+      ? renderTrackList(tracks)
+      : make(
+          "p",
+          "text-secondary mt-4",
+          "Non hai ancora ascoltato alcun brano."
+        )
   );
 }
 
@@ -1286,6 +1349,7 @@ function refreshPipUI() {
 function playTrack(track) {
   if (!track) return;
   state.currentTrack = track;
+  addRecentTrack(track);
   state.isPlaying = false;
 
   document.getElementById("playerTitle").textContent = track.title;
@@ -1311,7 +1375,7 @@ function playTrack(track) {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => {});
+      .catch(() => { });
   } else {
     // Nessuna anteprima: mostra info ma non riproduce
     audio.src = "";
@@ -1353,7 +1417,7 @@ function togglePlay() {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => {});
+      .catch(() => { });
     return;
   }
   updatePlayButton();
@@ -1411,6 +1475,7 @@ function updateVolumeIcon() {
 // ============================================
 // LIKE — salvati in localStorage
 // ============================================
+
 function toggleLike(trackId) {
   if (state.likedTracks.has(trackId)) {
     state.likedTracks.delete(trackId);
@@ -1628,6 +1693,13 @@ function openTrackDetailModal(trackId, ids, options = {}) {
     bootstrap.Modal.getInstance(modalEl).hide();
   };
 
+  document.getElementById("trackDetailShareBtn").onclick = () => {
+    modalEl.addEventListener("hidden.bs.modal", () => shareTrack(trackId), {
+      once: true,
+    });
+    bootstrap.Modal.getInstance(modalEl).hide();
+  };
+
   new bootstrap.Modal(modalEl).show();
 }
 
@@ -1693,6 +1765,17 @@ function openTrackActionsModal(trackId, options = {}) {
     });
     items.push(removeItem);
   }
+
+  const shareItem = make("button", "add-playlist-item");
+  shareItem.append(make("span", "", "Condividi"));
+  shareItem.append(make("i", "bi bi-share"));
+  shareItem.addEventListener("click", () => {
+    modalEl.addEventListener("hidden.bs.modal", () => shareTrack(trackId), {
+      once: true,
+    });
+    modal.hide();
+  });
+  items.push(shareItem);
 
   document.getElementById("trackActionsList").replaceChildren(...items);
   modal.show();
@@ -1804,4 +1887,46 @@ _confettiLoop();
 if (sessionStorage.getItem("just_logged_in")) {
   sessionStorage.removeItem("just_logged_in");
   _startConfetti();
+}
+
+// ============================================
+// CONDIVISIONE BRANO
+// ============================================
+
+function shareTrack(trackId) {
+  const track =
+    _trackRegistry.get(trackId) ||
+    (state.currentTrack?.id === trackId ? state.currentTrack : null);
+  if (!track) return;
+
+  const url =
+    track.trackViewUrl ||
+    `https://music.apple.com/search?term=${encodeURIComponent(track.title + " " + track.artist)}`;
+  const text = `${track.title} – ${track.artist}`;
+
+  _openShareModal(track, url, text);
+}
+
+function _openShareModal(track, url, text) {
+  document.getElementById("shareModalTitle").textContent = track.title;
+  document.getElementById("shareModalArtist").textContent = track.artist;
+
+  const encodedText = encodeURIComponent(text);
+  const encodedUrl = encodeURIComponent(url);
+
+  document.getElementById("shareWhatsApp").href =
+    `https://wa.me/?text=${encodeURIComponent(text + "\n" + url)}`;
+  document.getElementById("shareTelegram").href =
+    `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
+  document.getElementById("shareTwitter").href =
+    `https://x.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
+
+  document.getElementById("shareCopyBtn").onclick = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      bootstrap.Modal.getInstance(document.getElementById("shareModal")).hide();
+      showToast("Link copiato!");
+    });
+  };
+
+  new bootstrap.Modal(document.getElementById("shareModal")).show();
 }

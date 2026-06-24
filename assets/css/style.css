@@ -692,9 +692,9 @@ body {
   gap: 8px;
 }
 
-/* Bottone "tre puntini": nascosto su desktop, attivo solo su mobile */
+/* Bottone "tre puntini": apre il menu contestuale del brano su tutte le schermate */
 .track-more-btn {
-  display: none;
+  display: inline-flex;
 }
 
 /* Lista playlist nel modale "aggiungi a playlist" */
@@ -1391,7 +1391,8 @@ html.pip-mode body {
 }
 
 .track-detail-like-btn,
-.track-detail-add-btn {
+.track-detail-add-btn,
+.track-detail-share-btn {
   font-size: 24px;
 }
 
@@ -1459,4 +1460,60 @@ html.pip-mode body {
 
 .theme-swatch.active .theme-swatch-check {
   display: block;
+   MODALE CONDIVISIONE BRANO
+   ============================================ */
+.share-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
+  font-family: inherit;
+}
+
+.share-btn:hover {
+  opacity: 0.85;
+  transform: scale(1.02);
+  color: inherit;
+  text-decoration: none;
+}
+
+.share-btn i {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.share-btn-whatsapp {
+  background-color: #25d366;
+  color: #fff;
+}
+
+.share-btn-telegram {
+  background-color: #0088cc;
+  color: #fff;
+}
+
+.share-btn-twitter {
+  background-color: #000;
+  color: #fff;
+  border: 1px solid #444;
+}
+
+.share-btn-copy {
+  background-color: var(--spotify-gray);
+  color: var(--spotify-white);
 }

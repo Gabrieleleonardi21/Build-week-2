@@ -219,6 +219,9 @@
                         <button class="btn-icon track-detail-add-btn" id="trackDetailAddBtn" title="Aggiungi a playlist">
                             <i class="bi bi-plus-circle"></i>
                         </button>
+                        <button class="btn-icon track-detail-share-btn" id="trackDetailShareBtn" title="Condividi">
+                            <i class="bi bi-share"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -273,6 +276,32 @@
                     <p class="text-white-50 small mb-3">Scegli una palette di colori per personalizzare la pagina.</p>
                     <!-- Popolata via JS da renderThemeSwatches() in assets/js/theme.js -->
                     <div class="theme-swatch-grid" id="themeSwatchGrid"></div>
+    <!-- MODAL CONDIVIDI BRANO -->
+    <div class="modal fade" id="shareModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white">
+                <div class="modal-header border-secondary">
+                    <div>
+                        <h5 class="modal-title" id="shareModalTitle"></h5>
+                        <p class="text-secondary mb-0 small" id="shareModalArtist"></p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="share-buttons">
+                        <a id="shareWhatsApp" href="#" target="_blank" rel="noopener" class="share-btn share-btn-whatsapp">
+                            <i class="bi bi-whatsapp"></i><span>WhatsApp</span>
+                        </a>
+                        <a id="shareTelegram" href="#" target="_blank" rel="noopener" class="share-btn share-btn-telegram">
+                            <i class="bi bi-telegram"></i><span>Telegram</span>
+                        </a>
+                        <a id="shareTwitter" href="#" target="_blank" rel="noopener" class="share-btn share-btn-twitter">
+                            <i class="bi bi-twitter-x"></i><span>X / Twitter</span>
+                        </a>
+                        <button id="shareCopyBtn" class="share-btn share-btn-copy">
+                            <i class="bi bi-link-45deg"></i><span>Copia link</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
