@@ -209,6 +209,13 @@ function navigateTo(page, pushHistory = true) {
     return;
   }
 
+  // Le card di brano singolo (preferiti in home) non sono pagine: riproducono
+  // il brano e basta, senza navigare né aggiungere voci alla cronologia.
+  if (page.startsWith("track-")) {
+    quickPlay(page);
+    return;
+  }
+
   // Sub-pagine (album, genre, playlist, profile): renderizzate nel contenuto attuale
   if (pushHistory)
     history.pushState({ page }, "", "#" + encodeURIComponent(page));
@@ -991,8 +998,20 @@ async function quickPlay(page) {
     const id = page.slice(6);
     const { tracks } = await cached("album_" + id, () => itunesGetAlbum(id));
     playTracksList(tracks.map(normalizeTrack).filter(Boolean));
+  } else if (page.startsWith("userplaylist-")) {
+    // Playlist utente (card "Le tue playlist"): riproduce i brani salvati
+    const playlist = state.userPlaylists.find((p) => p.id === page.slice(13));
+    if (playlist) playTracksList(playlist.tracks);
   } else if (page.startsWith("playlist-")) {
     await playPlaylistById(page.slice(9));
+  } else if (page === "recent-tracks") {
+    // Card "Ascoltati di recente": riproduce la lista dei brani recenti
+    playTracksList(state.recentTracks);
+  } else if (page.startsWith("track-")) {
+    // Brano singolo (card "I tuoi brani preferiti"): riproduce quel brano
+    const id = page.slice(6);
+    const track = state.likedTracks.get(id) || _trackRegistry.get(id);
+    if (track) playTracksList([track]);
   }
 }
 
@@ -1158,15 +1177,35 @@ function setupPlayer() {
     if (state.currentTrack) toggleLike(state.currentTrack.id);
   });
 
-  // Seek sulla progress bar
-  document
-    .getElementById("progressContainer")
-    .addEventListener("click", (e) => {
-      if (!state.currentTrack || !audio.duration) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      audio.currentTime =
-        ((e.clientX - rect.left) / rect.width) * audio.duration;
-    });
+  // Seek sulla progress bar + anteprima al passaggio del mouse col timestamp
+  const progressContainer = document.getElementById("progressContainer");
+  const progressHover = document.getElementById("progressHover");
+  const progressTooltip = document.getElementById("progressTooltip");
+
+  progressContainer.addEventListener("mousemove", (e) => {
+    if (!state.currentTrack || !audio.duration) return;
+    const rect = progressContainer.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+
+    progressHover.style.width = pct * 100 + "%";
+    progressTooltip.style.left = pct * 100 + "%";
+    progressTooltip.textContent = formatDuration(
+      Math.floor(pct * audio.duration),
+    );
+    progressTooltip.classList.add("visible");
+  });
+
+  progressContainer.addEventListener("mouseleave", () => {
+    progressHover.style.width = "0%";
+    progressTooltip.classList.remove("visible");
+  });
+
+  progressContainer.addEventListener("click", (e) => {
+    if (!state.currentTrack || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    audio.currentTime =
+      ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
 
   // Controllo volume (cliccabile e draggabile)
   const volumeContainer = document.getElementById("volumeContainer");
