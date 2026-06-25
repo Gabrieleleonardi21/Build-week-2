@@ -1214,33 +1214,52 @@ function setupPlayer() {
       ((e.clientX - rect.left) / rect.width) * audio.duration;
   });
 
-  // Controllo volume (cliccabile e draggabile)
+  // Controllo volume (cliccabile e draggabile, orizzontale su desktop,
+  // verticale ≤480px — l'orientamento si capisce dalla forma del contenitore:
+  // più alto che largo = verticale, nessun bisogno di controllare lo schermo)
   const volumeContainer = document.getElementById("volumeContainer");
+  const volumeFillEl = document.getElementById("volumeFill");
+  const volumeHover = document.getElementById("volumeHover");
+
+  const isVolumeVertical = () => {
+    const rect = volumeContainer.getBoundingClientRect();
+    return rect.height > rect.width;
+  };
+
+  // Percentuale 0-1 dalla posizione del puntatore, sull'asse giusto.
+  // In verticale il volume sale andando verso l'alto, quindi va invertito.
+  const pctFromEvent = (e) => {
+    const rect = volumeContainer.getBoundingClientRect();
+    if (isVolumeVertical()) {
+      return Math.max(
+        0,
+        Math.min(1, 1 - (e.clientY - rect.top) / rect.height),
+      );
+    }
+    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  };
+
+  const applyVolumePct = (pct, fillEl) => {
+    if (isVolumeVertical()) fillEl.style.height = pct * 100 + "%";
+    else fillEl.style.width = pct * 100 + "%";
+  };
 
   const setVolumeFromEvent = (e) => {
-    const rect = volumeContainer.getBoundingClientRect();
-    state.volume = Math.max(
-      0,
-      Math.min(1, (e.clientX - rect.left) / rect.width),
-    );
+    state.volume = pctFromEvent(e);
     audio.volume = state.volume;
-    document.getElementById("volumeFill").style.width =
-      state.volume * 100 + "%";
+    applyVolumePct(state.volume, volumeFillEl);
     updateVolumeIcon();
     refreshPipUI();
     localStorage.setItem("player_volume", state.volume); // persiste il volume per la sessione successiva
   };
 
-  const volumeHover = document.getElementById("volumeHover");
   volumeContainer.addEventListener("mousemove", (e) => {
     if (volumeContainer.classList.contains("dragging")) return;
-    const rect = volumeContainer.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    volumeHover.style.width = pct * 100 + "%";
+    applyVolumePct(pctFromEvent(e), volumeHover);
   });
 
   volumeContainer.addEventListener("mouseleave", () => {
-    volumeHover.style.width = "0%";
+    applyVolumePct(0, volumeHover);
   });
 
   volumeContainer.addEventListener("mousedown", (e) => {
@@ -1258,11 +1277,26 @@ function setupPlayer() {
     document.addEventListener("mouseup", onMouseUp);
   });
 
+  // Touch (mobile): stesso comportamento del mouse, sul primo dito.
+  // preventDefault in touchmove evita che la pagina scrolli mentre si trascina lo slider.
+  volumeContainer.addEventListener("touchstart", (e) => {
+    setVolumeFromEvent(e.touches[0]);
+    volumeContainer.classList.add("dragging");
+  });
+
+  volumeContainer.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    setVolumeFromEvent(e.touches[0]);
+  });
+
+  volumeContainer.addEventListener("touchend", () => {
+    volumeContainer.classList.remove("dragging");
+  });
+
   document.getElementById("volumeBtn").addEventListener("click", () => {
     state.volume = state.volume > 0 ? 0 : 0.7;
     audio.volume = state.volume;
-    document.getElementById("volumeFill").style.width =
-      state.volume * 100 + "%";
+    applyVolumePct(state.volume, volumeFillEl);
     updateVolumeIcon();
     refreshPipUI();
     localStorage.setItem("player_volume", state.volume); // persiste anche il mute/unmute

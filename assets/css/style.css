@@ -1020,6 +1020,12 @@ body {
   gap: 12px;
 }
 
+/* Su desktop "scompare": i suoi figli (bottone + slider volume) restano
+   flex-item diretti di .player-right, esattamente come prima di questo wrapper */
+.volume-control {
+  display: contents;
+}
+
 .volume-bar-container {
   position: relative;
   width: 100px;
@@ -1297,15 +1303,69 @@ html.pip-mode body {
     bottom: 0;
     height: 72px;
     z-index: 40;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     gap: 8px;
     padding: 0 12px;
   }
-  /* Nascondo volume/coda/dispositivo e shuffle/repeat per non affollare */
-  .player-right,
+  /* .player-right "scompare" come box: i suoi figli (le 2 icone coda/dispositivo
+     + .volume-control) diventano grid-item diretti di .player, posizionabili
+     singolarmente con "order". Nascondo solo le icone coda/dispositivo e shuffle/repeat. */
+  .player-right {
+    display: contents;
+  }
+  .player-right > .btn-icon:not(#volumeBtn),
   #shuffleBtn,
   #repeatBtn {
     display: none;
+  }
+
+  .player-left {
+    order: 1;
+  }
+
+  /* Tra il cuore (fine di .player-left) e i controlli di play (.player-center) */
+  .volume-control {
+    order: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .player-center {
+    order: 3;
+  }
+
+  /* Slider verticale: alto e stretto invece che largo e basso.
+     28px + bottone (~24px) + gap restano dentro i 72px del footer mobile,
+     altrimenti la parte bassa dello slider finisce sotto il bordo dello schermo. */
+  .volume-control .volume-bar-container {
+    width: 4px;
+    height: 28px;
+  }
+
+  .volume-control .volume-bar-fill {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 70%; /* il JS aggiorna "height" invece di "width" quando è verticale */
+  }
+
+  .volume-control .volume-bar-hover {
+    width: 100%;
+    height: 0%;
+  }
+
+  .volume-control .volume-bar-thumb {
+    top: 0;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%) scale(0);
+  }
+
+  .volume-control .volume-bar-container:hover .volume-bar-thumb,
+  .volume-control .volume-bar-container.dragging .volume-bar-thumb {
+    transform: translate(-50%, -50%) scale(1);
   }
   .player-controls {
     gap: 12px;
