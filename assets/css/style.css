@@ -902,6 +902,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0; /* permette al titolo di troncarsi invece di spingere i controlli */
 }
 
 .player-cover {
@@ -912,6 +913,7 @@ body {
 
 .player-track-info {
   overflow: hidden;
+  min-width: 0; /* abilita l'ellipsis del titolo dentro il contenitore flex */
 }
 
 .track-title {
