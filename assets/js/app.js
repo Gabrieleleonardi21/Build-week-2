@@ -23,7 +23,20 @@ const state = {
   recentTracks: [], //Salva i recenti in localStorage e li mostra in Home
   currentPage: null, // sub-pagina attiva (album-123, genre-Pop, profile, ecc.) — null = pagina default
   lastSearchQuery: "", // ultima query di ricerca, ripristinata al refresh della pagina search
+  sessionArtistStats: {}, // statistiche di ascolto per il Wrapped (sessione corrente)
 };
+
+// Recupera le statistiche salvate al caricamento della pagina
+const savedStats = localStorage.getItem('wrapped_stats');
+if (savedStats) {
+  state.sessionArtistStats = JSON.parse(savedStats);
+}
+
+// Funzione helper per ottenere gli artisti più ascoltati ordinati
+function getTopArtists() {
+  return Object.entries(state.sessionArtistStats)
+    .sort((a, b) => b[1] - a[1]);
+}
 
 // Elemento audio HTML5 per le anteprime 30s
 const audio = document.getElementById("audioPlayer");
@@ -162,6 +175,17 @@ function addRecentTrack(track) {
     state.recentTracks = state.recentTracks.slice(0, 10);
   }
   saveRecentTracks();
+}
+
+function registraAscolto(track) {
+  if (!track || !track.artist) return;
+
+  const artist = track.artist;
+  state.sessionArtistStats[artist] = (state.sessionArtistStats[artist] || 0) + 1;
+  
+  localStorage.setItem('wrapped_stats', JSON.stringify(state.sessionArtistStats));
+  
+  console.log(`Ascolto registrato: ${artist} - Totale: ${state.sessionArtistStats[artist]}`);
 }
 
 // ============================================
@@ -1651,6 +1675,7 @@ function refreshPipUI() {
 
 function playTrack(track) {
   if (!track) return;
+  registraAscolto(track);
   state.currentTrack = track;
   addRecentTrack(track);
   state.isPlaying = false;
@@ -2269,3 +2294,69 @@ function _openShareModal(track, url, text) {
 
   new bootstrap.Modal(document.getElementById("shareModal")).show();
 }
+
+// =========================================================
+// LOGICA WRAPPED 
+// =========================================================
+
+function getTopArtists() {
+  if (!state.sessionArtistStats) return [];
+  return Object.entries(state.sessionArtistStats).sort((a, b) => b[1] - a[1]);
+}
+
+function getArtistImage(artistName) {
+  const track = state.recentTracks.find(t => t.artist === artistName);
+  if (track && track.cover) return track.cover;
+
+  const registryArray = Array.from(_trackRegistry.values());
+  const foundInRegistry = registryArray.find(t => t.artist === artistName);
+  return (foundInRegistry && foundInRegistry.cover) ? foundInRegistry.cover : 'assets/default-cover.jpg';
+}
+
+function renderWrappedView(container) {
+  const topArtists = getTopArtists();
+  container.replaceChildren();
+
+  container.append(make('h2', 'section-title', 'Il tuo Wrapped 2026'));
+
+  if (topArtists.length === 0) {
+    container.append(make('p', 'text-secondary', 'Ascolta qualche brano per vedere le tue statistiche!'));
+    return;
+  }
+
+  const grid = make('div', 'card-grid');
+
+  topArtists.slice(0, 5).forEach(([artist, count], index) => {
+    const card = make('div', 'album-card');
+    
+    const imgUrl = getArtistImage(artist);
+    const cover = document.createElement('img');
+    cover.src = imgUrl;
+    cover.className = 'album-cover';
+
+    const rank = make('div', 'rank-placeholder', `#${index + 1}`);
+    const title = make('div', 'album-title', artist);
+    const desc = make('div', 'album-description', `${count} ascolti`);
+
+    append(card, cover, rank, title, desc);
+    grid.append(card);
+  });
+
+  container.append(grid);
+}
+
+// =========================================================
+// LISTENER PER BOTTONE WRAPPED
+// =========================================================
+
+document.addEventListener('click', (e) => {
+    if (e.target.closest('#wrappedBtn')) {
+        e.preventDefault();
+        const contentArea = document.getElementById('contentArea');
+        if (contentArea) {
+            renderWrappedView(contentArea);
+        } else {
+            console.error("Errore: #contentArea non trovato!");
+        }
+    }
+});
