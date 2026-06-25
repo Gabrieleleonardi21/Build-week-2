@@ -1437,36 +1437,9 @@ html.pip-mode body {
     order: 3;
   }
 
-  /* Slider verticale: alto e stretto invece che largo e basso.
-     28px + bottone (~24px) + gap restano dentro i 72px del footer mobile,
-     altrimenti la parte bassa dello slider finisce sotto il bordo dello schermo. */
+  /* Su mobile la barra del volume sparisce: resta solo il bottone con l'icona. */
   .volume-control .volume-bar-container {
-    width: 4px;
-    height: 28px;
-  }
-
-  .volume-control .volume-bar-fill {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    height: 70%; /* il JS aggiorna "height" invece di "width" quando è verticale */
-  }
-
-  .volume-control .volume-bar-hover {
-    width: 100%;
-    height: 0%;
-  }
-
-  .volume-control .volume-bar-thumb {
-    top: 0;
-    left: 50%;
-    right: auto;
-    transform: translate(-50%, -50%) scale(0);
-  }
-
-  .volume-control .volume-bar-container:hover .volume-bar-thumb,
-  .volume-control .volume-bar-container.dragging .volume-bar-thumb {
-    transform: translate(-50%, -50%) scale(1);
+    display: none;
   }
   .player-controls {
     gap: 12px;

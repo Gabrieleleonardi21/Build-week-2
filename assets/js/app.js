@@ -32,12 +32,6 @@ if (savedStats) {
   state.sessionArtistStats = JSON.parse(savedStats);
 }
 
-// Funzione helper per ottenere gli artisti più ascoltati ordinati
-function getTopArtists() {
-  return Object.entries(state.sessionArtistStats)
-    .sort((a, b) => b[1] - a[1]);
-}
-
 // Elemento audio HTML5 per le anteprime 30s
 const audio = document.getElementById("audioPlayer");
 
@@ -182,10 +176,8 @@ function registraAscolto(track) {
 
   const artist = track.artist;
   state.sessionArtistStats[artist] = (state.sessionArtistStats[artist] || 0) + 1;
-  
+
   localStorage.setItem('wrapped_stats', JSON.stringify(state.sessionArtistStats));
-  
-  console.log(`Ascolto registrato: ${artist} - Totale: ${state.sessionArtistStats[artist]}`);
 }
 
 // ============================================
