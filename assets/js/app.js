@@ -1093,7 +1093,7 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
   moreBtn.title = "Altre opzioni";
   moreBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    openTrackActionsModal(track.id, options);
+    openTrackActionsModal(track.id, ids, options);
   });
   moreBtn.append(make("i", "bi bi-three-dots"));
   actions.append(moreBtn);
@@ -1996,7 +1996,7 @@ function _updateTrackDetailLike(trackId) {
 // ============================================
 // MENU AZIONI BRANO (mobile, bottone "tre puntini")
 // ============================================
-function openTrackActionsModal(trackId, options = {}) {
+function openTrackActionsModal(trackId, ids = [], options = {}) {
   const track = _trackRegistry.get(trackId);
   const title = document.getElementById("trackActionsTitle");
   title.textContent = "Opzioni brano";
@@ -2005,6 +2005,17 @@ function openTrackActionsModal(trackId, options = {}) {
   const modalEl = document.getElementById("trackActionsModal");
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   const items = [];
+
+  // Riproduci — su mobile (≤480px) il click/doppio-click sulla riga non riproduce,
+  // quindi è l'unico modo per avviare un singolo brano dalla tracklist
+  const playItem = make("button", "add-playlist-item");
+  playItem.append(make("span", "", "Riproduci"));
+  playItem.append(make("i", "bi bi-play-fill"));
+  playItem.addEventListener("click", () => {
+    playTrackInList(trackId, ids);
+    modal.hide();
+  });
+  items.push(playItem);
 
   // Aggiungi a una playlist — apre il modale dedicato dopo la chiusura di questo
   const addItem = make("button", "add-playlist-item");
