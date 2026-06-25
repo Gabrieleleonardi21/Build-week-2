@@ -1644,7 +1644,10 @@ function playTrack(track) {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {
+        state.isPlaying = false;
+        updatePlayButton();
+      });
   } else {
     // Nessuna anteprima: mostra info ma non riproduce
     audio.src = "";
@@ -1686,7 +1689,10 @@ function togglePlay() {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {
+        state.isPlaying = false;
+        updatePlayButton();
+      });
     return;
   }
   updatePlayButton();
