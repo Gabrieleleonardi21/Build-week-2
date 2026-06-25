@@ -1020,6 +1020,70 @@ body {
   gap: 12px;
 }
 
+/* SLEEP TIMER */
+.sleep-timer-wrapper {
+  position: relative;
+}
+
+.sleep-timer-label {
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+.sleep-timer-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  background: #282828;
+  border-radius: 6px;
+  padding: 6px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  display: none;
+  z-index: 1000;
+  min-width: 170px;
+}
+
+.sleep-timer-menu.open {
+  display: block;
+}
+
+.sleep-timer-option {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary, #fff);
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sleep-timer-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sleep-timer-option.sleep-timer-cancel {
+  color: #b3b3b3;
+}
+
+.sleep-timer-option.sleep-timer-cancel:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sleep-timer-option.sleep-timer-cancel:hover:not(:disabled) {
+  color: #fff;
+}
+
+.sleep-timer-divider {
+  border-color: rgba(255, 255, 255, 0.15);
+  margin: 4px 0;
+}
+
 .volume-bar-container {
   position: relative;
   width: 100px;

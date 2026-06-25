@@ -2,7 +2,7 @@
 // BRANI PREFERITI — init pagina e rendering lista liked tracks
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Controllo autenticazione: senza sessione attiva torna al login
     if (!localStorage.getItem('session_active')) {
         location.href = 'login.html';
@@ -11,10 +11,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadPersistedData();
 
-    const content = document.getElementById('contentArea');
-
+    // Registra il renderer dei preferiti: usato da refreshCurrentPage e popstate
     initShell(container => renderLikedTracks(container));
-    renderLikedTracks(content);
+
+    // Se c'è una sub-pagina nell'hash (es. liked.html#album-123), naviga lì
+    const hash = window.location.hash.slice(1);
+    if (hash) {
+        navigateTo(decodeURIComponent(hash), false);
+    } else {
+        // renderCurrentMainPage gestisce spinner + errori (no caricamento infinito)
+        await renderCurrentMainPage();
+    }
 });
 
 // Renderizza la lista dei brani salvati con intestazione e tracklist
