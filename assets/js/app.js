@@ -1614,7 +1614,8 @@ function createPlaylist() {
   document.getElementById("newPlaylistName").value = "";
   bootstrap.Modal.getInstance(document.getElementById("playlistModal")).hide();
   saveUserPlaylists();
-  renderUserPlaylists();
+  renderUserPlaylists(); // aggiorna la sidebar
+  refreshCurrentPage(); // ri-renderizza il contenuto (es. sezione "Le tue playlist" in home)
 }
 
 function renderUserPlaylists() {
