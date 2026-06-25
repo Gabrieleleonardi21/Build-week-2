@@ -1003,7 +1003,7 @@ body {
   border-radius: 2px;
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  /* overflow: hidden; */
 }
 
 .progress-bar-fill {
@@ -1012,6 +1012,37 @@ body {
   border-radius: 2px;
   width: 0%;
   transition: width 0.1s linear;
+}
+
+.progress-bar-hover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0%;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.progress-bar-tooltip {
+  position: absolute;
+  bottom: 12px;
+  transform: translateX(-50%);
+  background-color: #000;
+  color: var(--spotify-white);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.progress-bar-tooltip.visible {
+  opacity: 1;
 }
 
 .progress-bar-container:hover .progress-bar-fill {
@@ -1023,6 +1054,70 @@ body {
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
+}
+
+/* SLEEP TIMER */
+.sleep-timer-wrapper {
+  position: relative;
+}
+
+.sleep-timer-label {
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+.sleep-timer-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  background: #282828;
+  border-radius: 6px;
+  padding: 6px 0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+  display: none;
+  z-index: 1000;
+  min-width: 170px;
+}
+
+.sleep-timer-menu.open {
+  display: block;
+}
+
+.sleep-timer-option {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-primary, #fff);
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sleep-timer-option:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sleep-timer-option.sleep-timer-cancel {
+  color: #b3b3b3;
+}
+
+.sleep-timer-option.sleep-timer-cancel:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.sleep-timer-option.sleep-timer-cancel:hover:not(:disabled) {
+  color: #fff;
+}
+
+.sleep-timer-divider {
+  border-color: rgba(255, 255, 255, 0.15);
+  margin: 4px 0;
 }
 
 .volume-bar-container {
