@@ -173,6 +173,7 @@ function initShell(pageRenderer) {
   updateUserMenu();
   setupPlayer();
   setupPip();
+  setupSleepTimer();
   setupNavigation();
   setupThemeSwitcher(); // bottone tavolozza + modale (assets/js/theme.js)
   renderUserPlaylists();
@@ -1092,7 +1093,7 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
   moreBtn.title = "Altre opzioni";
   moreBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    openTrackActionsModal(track.id, options);
+    openTrackActionsModal(track.id, ids, options);
   });
   moreBtn.append(make("i", "bi bi-three-dots"));
   actions.append(moreBtn);
@@ -1346,6 +1347,105 @@ function setupPip() {
   document.addEventListener("visibilitychange", handlePipVisibilityChange);
 }
 
+// ============================================
+// SLEEP TIMER — ferma la riproduzione dopo N minuti
+// Il timer sopravvive alla navigazione tra le pagine perché lo stato
+// è in queste variabili di modulo, non nel DOM.
+// ============================================
+
+let _sleepTimerTimeout = null;   // setTimeout che spegne la musica
+let _sleepTimerEndTime = null;   // timestamp Unix (ms) di quando si fermerà
+let _sleepTimerIntervalId = null; // setInterval che aggiorna il conto alla rovescia sul pulsante
+
+function setupSleepTimer() {
+  const btn = document.getElementById("sleepTimerBtn");
+  const menu = document.getElementById("sleepTimerMenu");
+  const cancelBtn = document.getElementById("sleepTimerCancel");
+  if (!btn || !menu) return;
+
+  // Apre/chiude il menu al click sul pulsante luna
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation(); // evita che il listener sul document lo richiuda subito
+    menu.classList.toggle("open");
+  });
+
+  // Chiude il menu cliccando fuori
+  document.addEventListener("click", () => menu.classList.remove("open"));
+  // Impedisce che un click sul menu stesso lo chiuda (event bubbling)
+  menu.addEventListener("click", (e) => e.stopPropagation());
+
+  // Opzioni 15 / 30 / 60 min — ogni button ha data-minutes con il valore
+  menu.querySelectorAll(".sleep-timer-option[data-minutes]").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      startSleepTimer(parseInt(opt.dataset.minutes, 10));
+      menu.classList.remove("open");
+    });
+  });
+
+  // Bottone "Annulla timer"
+  cancelBtn.addEventListener("click", () => {
+    cancelSleepTimer();
+    menu.classList.remove("open");
+  });
+
+  // Applica lo stato iniziale al pulsante (per coerenza, al load è sempre spento)
+  _updateSleepTimerUI();
+}
+
+// Avvia il timer: cancella quello precedente se c'è, imposta timeout e intervallo di refresh UI
+function startSleepTimer(minutes) {
+  cancelSleepTimer(); // reset se era già attivo un timer precedente
+  _sleepTimerEndTime = Date.now() + minutes * 60 * 1000;
+
+  // Quando scade: mette in pausa e pulisce lo stato
+  _sleepTimerTimeout = setTimeout(() => {
+    audio.pause();
+    state.isPlaying = false;
+    updatePlayButton();
+    cancelSleepTimer();
+    showToast("Sleep timer: riproduzione fermata");
+  }, minutes * 60 * 1000);
+
+  // Aggiorna il conto alla rovescia sul pulsante ogni 30 secondi
+  _sleepTimerIntervalId = setInterval(_updateSleepTimerUI, 30000);
+  _updateSleepTimerUI();
+  showToast(`Sleep timer: stop tra ${minutes} min`);
+}
+
+// Annulla il timer e ripristina l'icona/etichetta del pulsante
+function cancelSleepTimer() {
+  clearTimeout(_sleepTimerTimeout);
+  clearInterval(_sleepTimerIntervalId);
+  _sleepTimerTimeout = null;
+  _sleepTimerEndTime = null;
+  _sleepTimerIntervalId = null;
+  _updateSleepTimerUI();
+}
+
+// Sincronizza l'aspetto del pulsante con lo stato del timer:
+// - timer attivo → icona piena verde + minuti residui
+// - timer spento → icona vuota grigia, "Annulla" disabilitato
+function _updateSleepTimerUI() {
+  const btn = document.getElementById("sleepTimerBtn");
+  const label = document.getElementById("sleepTimerLabel");
+  const cancelBtn = document.getElementById("sleepTimerCancel");
+  if (!btn) return;
+
+  const icon = btn.querySelector("i");
+  if (_sleepTimerEndTime) {
+    const remaining = Math.max(0, Math.ceil((_sleepTimerEndTime - Date.now()) / 60000));
+    btn.classList.add("active");
+    icon.className = "bi bi-moon-fill";
+    if (label) label.textContent = ` ${remaining}m`;
+    if (cancelBtn) cancelBtn.disabled = false;
+  } else {
+    btn.classList.remove("active");
+    icon.className = "bi bi-moon";
+    if (label) label.textContent = "";
+    if (cancelBtn) cancelBtn.disabled = true;
+  }
+}
+
 async function handlePipVisibilityChange() {
   if (document.hidden) {
     if (state.isPlaying && state.currentTrack && !pipWindow) {
@@ -1578,7 +1678,10 @@ function playTrack(track) {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {
+        state.isPlaying = false;
+        updatePlayButton();
+      });
   } else {
     // Nessuna anteprima: mostra info ma non riproduce
     audio.src = "";
@@ -1620,7 +1723,10 @@ function togglePlay() {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {
+        state.isPlaying = false;
+        updatePlayButton();
+      });
     return;
   }
   updatePlayButton();
@@ -1930,7 +2036,7 @@ function _updateTrackDetailLike(trackId) {
 // ============================================
 // MENU AZIONI BRANO (mobile, bottone "tre puntini")
 // ============================================
-function openTrackActionsModal(trackId, options = {}) {
+function openTrackActionsModal(trackId, ids = [], options = {}) {
   const track = _trackRegistry.get(trackId);
   const title = document.getElementById("trackActionsTitle");
   title.textContent = "Opzioni brano";
@@ -1939,6 +2045,17 @@ function openTrackActionsModal(trackId, options = {}) {
   const modalEl = document.getElementById("trackActionsModal");
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   const items = [];
+
+  // Riproduci — su mobile (≤480px) il click/doppio-click sulla riga non riproduce,
+  // quindi è l'unico modo per avviare un singolo brano dalla tracklist
+  const playItem = make("button", "add-playlist-item");
+  playItem.append(make("span", "", "Riproduci"));
+  playItem.append(make("i", "bi bi-play-fill"));
+  playItem.addEventListener("click", () => {
+    playTrackInList(trackId, ids);
+    modal.hide();
+  });
+  items.push(playItem);
 
   // Aggiungi a una playlist — apre il modale dedicato dopo la chiusura di questo
   const addItem = make("button", "add-playlist-item");

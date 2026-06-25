@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Renderizza la schermata principale con saluto, playlist e album in evidenza
-// Renderizza la schermata principale con saluto, playlist e album in evidenza
 async function renderHome(container) {
     const hour = new Date().getHours();
     let greeting = 'Buonasera';
@@ -51,27 +50,6 @@ async function renderHome(container) {
     // Mappa id playlist → url cover per accesso rapido
     const coverMap = Object.fromEntries(VIRTUAL_PLAYLISTS.map((p, i) => [p.id, vpCovers[i]]));
 
-    // Quick-grid con le prime 6 playlist virtuali
-    /*const quickGrid = make('div', 'quick-grid');
-    VIRTUAL_PLAYLISTS.slice(0, 6).forEach(p => {
-        const card = make('div', 'quick-card');
-        card.addEventListener('click', () => navigateTo('playlist-' + p.id));
-
-        const img = make('img');
-        img.src = coverMap[p.id];
-        img.alt = p.title;
-
-        const overlay = make('div', 'play-overlay-quick');
-        overlay.addEventListener('click', e => {
-            e.stopPropagation();
-            playPlaylistById(p.id);
-        });
-        overlay.append(make('i', 'bi bi-play-fill'));
-
-        append(card, img, make('div', 'quick-card-title', p.title), overlay);
-        quickGrid.append(card);
-    });*/
-
     // Card-grid con tutte le playlist in evidenza
     const playlistGrid = make('div', 'card-grid');
     VIRTUAL_PLAYLISTS.forEach(p => {
@@ -81,7 +59,8 @@ async function renderHome(container) {
     const podcastGrid = make('div', 'card-grid'); podcasts.forEach(podcast => {
         const card = make('div', 'album-card');
         card.addEventListener('click', () => {
-            window.open(podcast.url, '_blank');
+            // noopener: impedisce alla pagina esterna di accedere a window.opener (tabnabbing)
+            window.open(podcast.url, '_blank', 'noopener');
         });
         const img = make('img', 'album-cover');
         img.src = podcast.cover;

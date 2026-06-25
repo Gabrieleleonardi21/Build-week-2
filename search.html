@@ -80,6 +80,18 @@
                     <button class="nav-btn" id="forwardBtn"><i class="bi bi-chevron-right"></i></button>
                     <button class="nav-btn" id="themeBtn" title="Personalizza il tema"><i
                             class="bi bi-palette-fill"></i></button>
+                    <div class="sleep-timer-wrapper" id="sleepTimerWrapper">
+                        <button class="btn-icon" id="sleepTimerBtn" title="Sleep timer">
+                            <i class="bi bi-moon"></i><span class="sleep-timer-label" id="sleepTimerLabel"></span>
+                        </button>
+                        <div class="sleep-timer-menu" id="sleepTimerMenu">
+                            <button class="sleep-timer-option" data-minutes="15">Smetti tra 15 min</button>
+                            <button class="sleep-timer-option" data-minutes="30">Smetti tra 30 min</button>
+                            <button class="sleep-timer-option" data-minutes="60">Smetti tra 60 min</button>
+                            <hr class="sleep-timer-divider">
+                            <button class="sleep-timer-option sleep-timer-cancel" id="sleepTimerCancel">Annulla timer</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="user-menu">
                     <button class="user-btn">
@@ -197,6 +209,42 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- MODAL RINOMINA PLAYLIST -->
+    <div class="modal fade" id="renamePlaylistModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white">
+          <div class="modal-header border-secondary">
+            <h5 class="modal-title">Rinomina playlist</h5>
+            <button
+              type="button"
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <input
+              type="text"
+              class="form-control login-input"
+              id="renamePlaylistInput"
+              placeholder="Nuovo nome"
+            />
+          </div>
+          <div class="modal-footer border-secondary">
+            <button
+              type="button"
+              class="btn btn-outline-light"
+              data-bs-dismiss="modal"
+            >
+              Annulla
+            </button>
+            <button type="button" class="btn btn-spotify" id="confirmRenameBtn">
+              Rinomina
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- MODAL CONFERMA (azioni distruttive, es. elimina playlist) -->
