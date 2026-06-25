@@ -80,6 +80,18 @@
                     <button class="nav-btn" id="forwardBtn"><i class="bi bi-chevron-right"></i></button>
                     <button class="nav-btn" id="themeBtn" title="Personalizza il tema"><i
                             class="bi bi-palette-fill"></i></button>
+                    <div class="sleep-timer-wrapper" id="sleepTimerWrapper">
+                        <button class="btn-icon" id="sleepTimerBtn" title="Sleep timer">
+                            <i class="bi bi-moon"></i><span class="sleep-timer-label" id="sleepTimerLabel"></span>
+                        </button>
+                        <div class="sleep-timer-menu" id="sleepTimerMenu">
+                            <button class="sleep-timer-option" data-minutes="15">Smetti tra 15 min</button>
+                            <button class="sleep-timer-option" data-minutes="30">Smetti tra 30 min</button>
+                            <button class="sleep-timer-option" data-minutes="60">Smetti tra 60 min</button>
+                            <hr class="sleep-timer-divider">
+                            <button class="sleep-timer-option sleep-timer-cancel" id="sleepTimerCancel">Annulla timer</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="user-menu">
                     <button class="user-btn">
@@ -125,18 +137,6 @@
             <div class="player-right">
                 <button class="btn-icon"><i class="bi bi-music-note-list"></i></button>
                 <button class="btn-icon"><i class="bi bi-pc-display"></i></button>
-                <div class="sleep-timer-wrapper" id="sleepTimerWrapper">
-                    <button class="btn-icon" id="sleepTimerBtn" title="Sleep timer">
-                        <i class="bi bi-moon"></i><span class="sleep-timer-label" id="sleepTimerLabel"></span>
-                    </button>
-                    <div class="sleep-timer-menu" id="sleepTimerMenu">
-                        <button class="sleep-timer-option" data-minutes="15">Smetti tra 15 min</button>
-                        <button class="sleep-timer-option" data-minutes="30">Smetti tra 30 min</button>
-                        <button class="sleep-timer-option" data-minutes="60">Smetti tra 60 min</button>
-                        <hr class="sleep-timer-divider">
-                        <button class="sleep-timer-option sleep-timer-cancel" id="sleepTimerCancel">Annulla timer</button>
-                    </div>
-                </div>
                 <button class="btn-icon" id="volumeBtn"><i class="bi bi-volume-up-fill"></i></button>
                 <div class="volume-bar-container" id="volumeContainer">
                     <div class="volume-bar-hover" id="volumeHover"></div>
