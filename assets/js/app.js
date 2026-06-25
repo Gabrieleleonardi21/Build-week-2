@@ -127,6 +127,9 @@ function loadPersistedData() {
     localStorage.setItem("profile_join_date", new Date().toISOString());
   }
   state.joinDate = localStorage.getItem("profile_join_date");
+  // Ripristina il volume dell'ultima sessione, se salvato
+  const savedVolume = localStorage.getItem("player_volume");
+  if (savedVolume !== null) state.volume = parseFloat(savedVolume);
 }
 
 function saveLikedTracks() {
@@ -481,7 +484,6 @@ async function renderAlbum(container, albumId) {
 
   const norm = normalizeAlbum(album);
   const tracks = rawTracks.map(normalizeTrack).filter(Boolean);
-  tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   const meta = make("div", "playlist-meta");
   append(meta, make("strong", "", norm.artist), ` • ${tracks.length} brani`);
@@ -591,7 +593,6 @@ async function renderPlaylist(container, playlistId) {
     cached("vptracks_" + playlistId, () => itunesGetPlaylistTracks(playlistId)),
   ]);
   const tracks = rawTracks.map(normalizeTrack).filter(Boolean);
-  tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   const playBtn = make("button", "btn-play-large");
   playBtn.addEventListener("click", () => playTracksList(tracks));
@@ -615,7 +616,6 @@ function renderUserPlaylist(container, playlistId) {
   if (!playlist) return;
 
   const cover = "assets/img/ppp.jpg";
-  playlist.tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   // Le righe in una playlist utente mostrano anche il bottone "rimuovi"
   let tracksEl;
@@ -682,7 +682,6 @@ function renderUserPlaylist(container, playlistId) {
 
 function renderRecentTracks(container) {
   const tracks = state.recentTracks;
-  tracks.forEach((t) => _trackRegistry.set(t.id, t));
   const playBtn = make("button", "btn-play-large");
   playBtn.append(make("i", "bi bi-play-fill"));
   playBtn.addEventListener("click", () => playTracksList(tracks));
@@ -1176,6 +1175,7 @@ function setupPlayer() {
       state.volume * 100 + "%";
     updateVolumeIcon();
     refreshPipUI();
+    localStorage.setItem("player_volume", state.volume); // persiste il volume per la sessione successiva
   };
 
   const volumeHover = document.getElementById("volumeHover");
@@ -1212,6 +1212,7 @@ function setupPlayer() {
       state.volume * 100 + "%";
     updateVolumeIcon();
     refreshPipUI();
+    localStorage.setItem("player_volume", state.volume); // persiste anche il mute/unmute
   });
 
   // Aggiorna la barra di avanzamento in tempo reale
@@ -1239,6 +1240,9 @@ function setupPlayer() {
   });
 
   audio.volume = state.volume;
+  // Aggiorna la barra e l'icona in base al volume ripristinato dal localStorage
+  document.getElementById("volumeFill").style.width = state.volume * 100 + "%";
+  updateVolumeIcon();
 }
 
 // ============================================
@@ -2006,19 +2010,24 @@ function _confettiLoop() {
     }
   }
 
-  requestAnimationFrame(_confettiLoop);
+  // Continua a 60fps solo finché c'è qualcosa da animare: a riposo il loop si
+  // ferma del tutto, evitando di consumare CPU/batteria su una pagina ferma.
+  if (_confettiRunning || _confettiParticles.length > 0) {
+    requestAnimationFrame(_confettiLoop);
+  }
 }
 
 function _startConfetti() {
+  if (_confettiRunning) return; // evita avvii sovrapposti
   _confettiRunning = true;
   setTimeout(() => {
     _confettiRunning = false;
   }, 5000);
+  _confettiLoop(); // avvia il loop solo ora, non al caricamento della pagina
 }
 
 _resizeConfetti();
 window.addEventListener("resize", _resizeConfetti);
-_confettiLoop();
 
 if (sessionStorage.getItem("just_logged_in")) {
   sessionStorage.removeItem("just_logged_in");
