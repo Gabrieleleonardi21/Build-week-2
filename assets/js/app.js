@@ -18,6 +18,7 @@ const state = {
   isRepeat: false,
   volume: 0.7,
   likedTracks: new Map(), // Map<id, TrackObject> — persistito in localStorage
+  favoriteArtists: new Map(), //Segui i tuoi artisti preferiti
   userPlaylists: [], // [{ id, name, tracks: [] }] — persistito in localStorage
   recentTracks: [], //Salva i recenti in localStorage e li mostra in Home
   currentPage: null, // sub-pagina attiva (album-123, genre-Pop, profile, ecc.) — null = pagina default
@@ -109,6 +110,9 @@ const _MAIN_PAGES = {
 function loadPersistedData() {
   const liked = JSON.parse(localStorage.getItem("liked_tracks") || "[]");
   state.likedTracks = new Map(liked);
+  const artists = JSON.parse(
+    localStorage.getItem("favorite_artists") || "[]");
+  state.favoriteArtists = new Map(artists);
   state.userPlaylists = JSON.parse(
     localStorage.getItem("user_playlists") || "[]",
   );
@@ -129,6 +133,13 @@ function saveLikedTracks() {
   localStorage.setItem(
     "liked_tracks",
     JSON.stringify([...state.likedTracks.entries()]),
+  );
+}
+
+function saveFavoriteArtists() {
+  localStorage.setItem(
+    "favorite_artists",
+    JSON.stringify([...state.favoriteArtists.entries()])
   );
 }
 
@@ -181,7 +192,7 @@ function restorePlayerState() {
       track.duration,
     );
     updateLikeBtn();
-  } catch (_) {}
+  } catch (_) { }
 }
 
 // ============================================
@@ -271,6 +282,13 @@ function setupNavigation() {
     .addEventListener("click", () => navigateTo("profile"));
 
   document
+  .getElementById("favoriteArtistsBtn")
+  ?.addEventListener("click", (e) => {
+    e.preventDefault();
+    navigateTo("favorite-artists");
+  });
+
+  document
     .getElementById("createPlaylistBtn")
     .addEventListener("click", (e) => {
       e.preventDefault();
@@ -341,6 +359,8 @@ async function showPage(page) {
       await renderGenre(content, page.slice(6));
     else if (page.startsWith("artist-"))
       await renderArtist(content, page.slice(7));
+    else if (page==="favorite-artists")
+      renderFavoriteArtists(content);
   } catch (e) {
     showRenderError(content, e);
   }
@@ -503,7 +523,22 @@ async function renderArtist(container, artistId) {
 
   const meta = make("div", "playlist-meta");
   append(meta, make("span", "", artist.primaryGenreName || ""));
-
+  const followBtn = make(
+    "button",
+    state.favoriteArtists.has(Number(artistId))
+      ? "btn btn-outline-light mt-3"
+      : "btn btn-success mt-3",
+    state.favoriteArtists.has(Number(artistId))
+      ? "Seguito"
+      : "Segui"
+  );
+  followBtn.addEventListener("click", () => {
+    toggleFollowArtist({
+      artistId: artist.artistId,
+      artistName: artist.artistName,
+      genre: artist.primaryGenreName || ""
+    });
+  });
   const albumGrid = make("div", "card-grid");
   albums
     .map(normalizeAlbum)
@@ -511,12 +546,35 @@ async function renderArtist(container, artistId) {
     .forEach((a) =>
       albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
     );
+  const header = makePlaylistHeader(null,"Artista",artist.artistName,meta);
+  header.append(followBtn);
+  const nodes = [header];
+}
 
-  const nodes = [makePlaylistHeader(null, "Artista", artist.artistName, meta)];
-  if (albumGrid.childElementCount > 0) {
-    nodes.push(make("h2", "section-title", "Album"), albumGrid);
-  }
-  container.replaceChildren(...nodes);
+
+function renderFavoriteArtists(container) {
+  const artists = [...state.favoriteArtists.values()];
+  const title = make("h1","greeting-title","Artisti preferiti"
+  );
+  if (artists.length === 0) {
+    container.replaceChildren(title,make("p","text-secondary mt-4","Non segui ancora nessun artista."
+      )
+    );
+    return;
+    }  
+    const grid = make("div", "card-grid");
+    artists.forEach(artist => {
+    const card = make("div","album-card");
+    card.addEventListener("click", () => {
+      navigateTo("artist-" + artist.artistId);
+    });
+
+    append(card,make("div","album-title",artist.artistName
+      ),make("div","album-description",artist.genre || "")
+    );
+    grid.append(card);
+  });
+  container.replaceChildren(title,grid);
 }
 
 async function renderPlaylist(container, playlistId) {
@@ -635,10 +693,10 @@ function renderRecentTracks(container) {
     tracks.length
       ? renderTrackList(tracks)
       : make(
-          "p",
-          "text-secondary mt-4",
-          "Non hai ancora ascoltato alcun brano.",
-        ),
+        "p",
+        "text-secondary mt-4",
+        "Non hai ancora ascoltato alcun brano.",
+      ),
   );
 }
 
@@ -1429,7 +1487,7 @@ function playTrack(track) {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => {});
+      .catch(() => { });
   } else {
     // Nessuna anteprima: mostra info ma non riproduce
     audio.src = "";
@@ -1471,7 +1529,7 @@ function togglePlay() {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => {});
+      .catch(() => { });
     return;
   }
   updatePlayButton();
@@ -1543,6 +1601,19 @@ function toggleLike(trackId) {
   saveLikedTracks();
   updateLikeBtn();
   refreshCurrentPage();
+}
+
+function toggleFollowArtist(artist) {
+  if (!artist || !artist.artistId) return;
+  if (state.favoriteArtists.has(artist.artistId)) {
+    state.favoriteArtists.delete(artist.artistId);
+  } else {
+    state.favoriteArtists.set(artist.artistId, artist);
+  }
+  saveFavoriteArtists();
+  if (state.currentPage?.startsWith("artist-")) {
+    showPage(state.currentPage);
+  }
 }
 
 function updateLikeBtn() {
