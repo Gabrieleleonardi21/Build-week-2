@@ -123,6 +123,9 @@ function loadPersistedData() {
     localStorage.setItem("profile_join_date", new Date().toISOString());
   }
   state.joinDate = localStorage.getItem("profile_join_date");
+  // Ripristina il volume dell'ultima sessione, se salvato
+  const savedVolume = localStorage.getItem("player_volume");
+  if (savedVolume !== null) state.volume = parseFloat(savedVolume);
 }
 
 function saveLikedTracks() {
@@ -1114,6 +1117,7 @@ function setupPlayer() {
       state.volume * 100 + "%";
     updateVolumeIcon();
     refreshPipUI();
+    localStorage.setItem("player_volume", state.volume); // persiste il volume per la sessione successiva
   };
 
   const volumeHover = document.getElementById("volumeHover");
@@ -1150,6 +1154,7 @@ function setupPlayer() {
       state.volume * 100 + "%";
     updateVolumeIcon();
     refreshPipUI();
+    localStorage.setItem("player_volume", state.volume); // persiste anche il mute/unmute
   });
 
   // Aggiorna la barra di avanzamento in tempo reale
@@ -1177,6 +1182,9 @@ function setupPlayer() {
   });
 
   audio.volume = state.volume;
+  // Aggiorna la barra e l'icona in base al volume ripristinato dal localStorage
+  document.getElementById("volumeFill").style.width = state.volume * 100 + "%";
+  updateVolumeIcon();
 }
 
 // ============================================
