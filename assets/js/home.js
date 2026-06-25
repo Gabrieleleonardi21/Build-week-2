@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Renderizza la schermata principale con saluto, playlist e album in evidenza
+// Renderizza la schermata principale con saluto, playlist e album in evidenza
 async function renderHome(container) {
     const hour = new Date().getHours();
     let greeting = 'Buonasera';
@@ -102,6 +103,16 @@ async function renderHome(container) {
         make('h2', 'section-title', '🎙️ Podcast più ascoltati'),
         podcastGrid,
     ];
+
+    /* ******** Aggiunta sezione Brani Preferiti come card ******** */
+    const likedTracks = Array.from(state.likedTracks.values()).slice(0, 6);
+    if (likedTracks.length > 0) {
+        const likedGrid = make('div', 'card-grid');
+        likedTracks.forEach(track => {
+            likedGrid.append(makeCard(track.cover, track.title, track.artist, 'track-' + track.id));
+        });
+        nodes.splice(1, 0, make('h2', 'section-title', 'I tuoi brani preferiti'), likedGrid);
+    }
 
     // Playlist utente (sostituite la sezione "libreria" rimossa dalla MPA)
     if (

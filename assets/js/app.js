@@ -39,7 +39,6 @@ let _trackDetailTimer = null;
 
 //
 
-
 // Cache per le risposte API — evita chiamate duplicate e fa da fallback
 // quando l'API iTunes è irraggiungibile o limita le richieste (HTTP 403).
 // Livelli: 1) memoria  2) localStorage entro la TTL  3) chiamata API
@@ -114,7 +113,7 @@ function loadPersistedData() {
     localStorage.getItem("user_playlists") || "[]",
   );
   state.recentTracks = JSON.parse(
-    localStorage.getItem("recent_tracks") || "[]"
+    localStorage.getItem("recent_tracks") || "[]",
   );
   state.profilePhoto = localStorage.getItem("profile_photo") || null;
   state.displayName = localStorage.getItem("display_name");
@@ -138,17 +137,12 @@ function saveUserPlaylists() {
 }
 
 function saveRecentTracks() {
-  localStorage.setItem(
-    "recent_tracks",
-    JSON.stringify(state.recentTracks)
-  );
+  localStorage.setItem("recent_tracks", JSON.stringify(state.recentTracks));
 }
 
 function addRecentTrack(track) {
   if (!track) return;
-  state.recentTracks = state.recentTracks.filter(
-    t => t.id !== track.id
-  );
+  state.recentTracks = state.recentTracks.filter((t) => t.id !== track.id);
   state.recentTracks.unshift(track);
   if (state.recentTracks.length > 10) {
     state.recentTracks = state.recentTracks.slice(0, 10);
@@ -187,7 +181,7 @@ function restorePlayerState() {
       track.duration,
     );
     updateLikeBtn();
-  } catch (_) { }
+  } catch (_) {}
 }
 
 // ============================================
@@ -342,8 +336,7 @@ async function showPage(page) {
       await renderPlaylist(content, page.slice(9));
     else if (page.startsWith("userplaylist-"))
       renderUserPlaylist(content, page.slice(13));
-    else if (page === "recent-tracks")
-      renderRecentTracks(content);
+    else if (page === "recent-tracks") renderRecentTracks(content);
     else if (page.startsWith("genre-"))
       await renderGenre(content, page.slice(6));
     else if (page.startsWith("artist-"))
@@ -489,6 +482,15 @@ async function renderAlbum(container, albumId) {
 }
 
 async function renderArtist(container, artistId) {
+  if (artistId === CUSTOM_TRACK_DARIO.artistId) {
+    const meta = make("div", "playlist-meta", "Artista indipendente");
+    container.replaceChildren(
+      makePlaylistHeader(null, "Artista", CUSTOM_TRACK_DARIO.artistName, meta),
+      make("h2", "section-title", "Brani"),
+      renderTrackList([normalizeTrack(CUSTOM_TRACK_DARIO)]),
+    );
+    return;
+  }
   const { artist, albums } = await cached("artist_" + artistId, () =>
     itunesGetArtist(artistId),
   );
@@ -503,13 +505,14 @@ async function renderArtist(container, artistId) {
   append(meta, make("span", "", artist.primaryGenreName || ""));
 
   const albumGrid = make("div", "card-grid");
-  albums.map(normalizeAlbum).filter(Boolean).forEach((a) =>
-    albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
-  );
+  albums
+    .map(normalizeAlbum)
+    .filter(Boolean)
+    .forEach((a) =>
+      albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
+    );
 
-  const nodes = [
-    makePlaylistHeader(null, "Artista", artist.artistName, meta),
-  ];
+  const nodes = [makePlaylistHeader(null, "Artista", artist.artistName, meta)];
   if (albumGrid.childElementCount > 0) {
     nodes.push(make("h2", "section-title", "Album"), albumGrid);
   }
@@ -586,13 +589,17 @@ function renderUserPlaylist(container, playlistId) {
   const renameBtn = make("button", "btn-icon");
   renameBtn.style.fontSize = "32px";
   renameBtn.title = "Rinomina playlist";
-  
+
   renameBtn.addEventListener("click", () => {
     document.getElementById("renamePlaylistInput").value = playlist.name;
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("renamePlaylistModal"));
+    const modal = bootstrap.Modal.getOrCreateInstance(
+      document.getElementById("renamePlaylistModal"),
+    );
     const confirmBtn = document.getElementById("confirmRenameBtn");
     const handler = () => {
-      const newName = document.getElementById("renamePlaylistInput").value.trim();
+      const newName = document
+        .getElementById("renamePlaylistInput")
+        .value.trim();
       if (newName) {
         playlist.name = newName;
         saveUserPlaylists();
@@ -605,8 +612,6 @@ function renderUserPlaylist(container, playlistId) {
     confirmBtn.addEventListener("click", handler);
     modal.show();
   });
-  
-
 
   renameBtn.append(make("i", "bi bi-pencil"));
 
@@ -619,39 +624,21 @@ function renderUserPlaylist(container, playlistId) {
 
 function renderRecentTracks(container) {
   const tracks = state.recentTracks;
-  tracks.forEach(t =>
-    _trackRegistry.set(t.id, t)
-  );
-  const playBtn = make("button", "btn-play-large");playBtn.append(
-    make("i", "bi bi-play-fill")
-  );
-  playBtn.addEventListener(
-    "click",
-    () => playTracksList(tracks)
-  );
-  const meta = make(
-    "div",
-    "playlist-meta",
-    `${tracks.length} brani`
-  );
+  tracks.forEach((t) => _trackRegistry.set(t.id, t));
+  const playBtn = make("button", "btn-play-large");
+  playBtn.append(make("i", "bi bi-play-fill"));
+  playBtn.addEventListener("click", () => playTracksList(tracks));
+  const meta = make("div", "playlist-meta", `${tracks.length} brani`);
   container.replaceChildren(
-    makePlaylistHeader(
-      null,
-      "Playlist",
-      "Ascoltati di recente",
-      meta
-    ),
-    append(
-      make("div", "playlist-actions-row"),
-      playBtn
-    ),
+    makePlaylistHeader(null, "Playlist", "Ascoltati di recente", meta),
+    append(make("div", "playlist-actions-row"), playBtn),
     tracks.length
       ? renderTrackList(tracks)
       : make(
           "p",
           "text-secondary mt-4",
-          "Non hai ancora ascoltato alcun brano."
-        )
+          "Non hai ancora ascoltato alcun brano.",
+        ),
   );
 }
 
@@ -1442,7 +1429,7 @@ function playTrack(track) {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {});
   } else {
     // Nessuna anteprima: mostra info ma non riproduce
     audio.src = "";
@@ -1484,7 +1471,7 @@ function togglePlay() {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {});
     return;
   }
   updatePlayButton();
@@ -1583,9 +1570,12 @@ function createPlaylist() {
 function openRenamePlaylist(id, currentName) {
   _renamePlaylistId = id;
   document.getElementById("newPlaylistName").value = currentName;
-  document.querySelector("#playlistModal .modal-title").textContent = "Rinomina playlist";
+  document.querySelector("#playlistModal .modal-title").textContent =
+    "Rinomina playlist";
   document.getElementById("confirmPlaylistBtn").textContent = "Rinomina";
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("playlistModal")).show();
+  bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("playlistModal"),
+  ).show();
 }
 
 function renderUserPlaylists() {
