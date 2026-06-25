@@ -1024,6 +1024,7 @@ body {
    flex-item diretti di .player-right, esattamente come prima di questo wrapper */
 .volume-control {
   display: contents;
+}
 /* SLEEP TIMER */
 .sleep-timer-wrapper {
   position: relative;
