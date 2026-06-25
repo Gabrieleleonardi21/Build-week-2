@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,10 +11,12 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-     <link rel="icon" href="assets/img/image.png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="icon" href="assets/img/image.png">
     <link rel="stylesheet" href="assets/css/style.css">
 </head>
+
 <body>
 
     <div class="app-container">
@@ -32,34 +35,40 @@
 
             <!-- Contenitore voci: a tendina/overlay su mobile, flat su desktop (display:contents) -->
             <div class="sidebar-menu">
-            <nav class="main-nav">
-                <a href="home.html" class="nav-link" data-page="home">
-                    <i class="bi bi-house-door-fill"></i>
-                    <span>Home</span>
-                </a>
-                <a href="search.html" class="nav-link" data-page="search">
-                    <i class="bi bi-search"></i>
-                    <span>Cerca</span>
-                </a>
-                <a href="home.html" class="nav-link" data-page="library">
-                    <i class="bi bi-music-note-list"></i>
-                    <span>La tua libreria</span>
-                </a>
-            </nav>
+                <nav class="main-nav">
+                    <a href="home.html" class="nav-link" data-page="home">
+                        <i class="bi bi-house-door-fill"></i>
+                        <span>Home</span>
+                    </a>
+                    <a href="search.html" class="nav-link" data-page="search">
+                        <i class="bi bi-search"></i>
+                        <span>Cerca</span>
+                    </a>
+                    <a href="home.html" class="nav-link" data-page="library">
+                        <i class="bi bi-music-note-list"></i>
+                        <span>La tua libreria</span>
+                    </a>
+                </nav>
 
-            <div class="playlist-actions">
-                <a href="#" class="nav-link" id="createPlaylistBtn">
-                    <div class="action-icon"><i class="bi bi-plus-lg"></i></div>
-                    <span>Crea playlist</span>
-                </a>
-                <a href="liked.html" class="nav-link active" data-page="liked">
-                    <div class="action-icon liked-icon"><i class="bi bi-heart-fill"></i></div>
-                    <span>Brani che ti piacciono</span>
-                </a>
-            </div>
+                <div class="playlist-actions">
+                    <a href="liked.html" class="nav-link active" data-page="liked">
+                        <div class="action-icon liked-icon"><i class="bi bi-heart-fill"></i></div>
+                        <span>Brani che ti piacciono</span>
+                    </a>
+                    <a href="#" class="nav-link" id="favoriteArtistsBtn">
+                        <div class="action-icon">
+                            <i class="bi bi-person-heart"></i>
+                        </div>
+                        <span>Artisti preferiti</span>
+                    </a>
+                    <a href="#" class="nav-link" id="createPlaylistBtn">
+                        <div class="action-icon"><i class="bi bi-plus-lg"></i></div>
+                        <span>Crea playlist</span>
+                    </a>
+                </div>
 
-            <hr class="sidebar-divider">
-            <div class="user-playlists" id="userPlaylists"></div>
+                <hr class="sidebar-divider">
+                <div class="user-playlists" id="userPlaylists"></div>
             </div>
         </aside>
 
@@ -69,7 +78,8 @@
                 <div class="nav-buttons">
                     <button class="nav-btn" id="backBtn"><i class="bi bi-chevron-left"></i></button>
                     <button class="nav-btn" id="forwardBtn"><i class="bi bi-chevron-right"></i></button>
-                    <button class="nav-btn" id="themeBtn" title="Personalizza il tema"><i class="bi bi-palette-fill"></i></button>
+                    <button class="nav-btn" id="themeBtn" title="Personalizza il tema"><i
+                            class="bi bi-palette-fill"></i></button>
                 </div>
                 <div class="user-menu">
                     <button class="user-btn">
@@ -135,7 +145,8 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <input type="text" class="form-control login-input" id="newPlaylistName" placeholder="Nome playlist">
+                    <input type="text" class="form-control login-input" id="newPlaylistName"
+                        placeholder="Nome playlist">
                 </div>
                 <div class="modal-footer border-secondary">
                     <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Annulla</button>
@@ -155,22 +166,26 @@
                 </div>
                 <div class="modal-body">
                     <div class="d-flex gap-3 align-items-center mb-3">
-                        <div class="profile-photo-edit" id="profilePhotoEdit" onclick="document.getElementById('profilePhotoInput').click()">
+                        <div class="profile-photo-edit" id="profilePhotoEdit"
+                            onclick="document.getElementById('profilePhotoInput').click()">
                             <span id="profilePhotoPlaceholder"><i class="bi bi-camera-fill"></i></span>
                         </div>
                         <div class="flex-grow-1">
                             <label class="form-label text-white">Nome</label>
-                            <input type="text" class="form-control login-input" id="editDisplayName" placeholder="Il tuo nome">
+                            <input type="text" class="form-control login-input" id="editDisplayName"
+                                placeholder="Il tuo nome">
                             <small class="text-white-50 d-block mt-2">Clicca sull'immagine per caricare una foto</small>
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-white">Bio</label>
-                        <textarea class="form-control login-input" id="editBio" rows="3" placeholder="Raccontati in poche parole..."></textarea>
+                        <textarea class="form-control login-input" id="editBio" rows="3"
+                            placeholder="Raccontati in poche parole..."></textarea>
                     </div>
                     <div class="mb-2">
                         <label class="form-label text-white">Città</label>
-                        <input type="text" class="form-control login-input" id="editLocation" placeholder="Es. Milano, Italia">
+                        <input type="text" class="form-control login-input" id="editLocation"
+                            placeholder="Es. Milano, Italia">
                     </div>
                     <input type="file" id="profilePhotoInput" accept="image/*" style="display:none;">
                 </div>
@@ -203,7 +218,8 @@
     <div class="modal fade" id="trackDetailModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered track-detail-dialog">
             <div class="modal-content track-detail-content">
-                <button type="button" class="btn-close btn-close-white track-detail-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                <button type="button" class="btn-close btn-close-white track-detail-close" data-bs-dismiss="modal"
+                    aria-label="Chiudi"></button>
                 <img id="trackDetailCover" src="" alt="" class="track-detail-cover">
                 <div class="track-detail-info">
                     <p class="track-detail-badge">Brano</p>
@@ -218,7 +234,8 @@
                         <button class="btn-icon track-detail-like-btn" id="trackDetailLikeBtn" title="Mi piace">
                             <i class="bi bi-heart"></i>
                         </button>
-                        <button class="btn-icon track-detail-add-btn" id="trackDetailAddBtn" title="Aggiungi a playlist">
+                        <button class="btn-icon track-detail-add-btn" id="trackDetailAddBtn"
+                            title="Aggiungi a playlist">
                             <i class="bi bi-plus-circle"></i>
                         </button>
                         <button class="btn-icon track-detail-share-btn" id="trackDetailShareBtn" title="Condividi">
@@ -258,8 +275,10 @@
                     <div id="addPlaylistList" class="add-playlist-list"></div>
                     <hr class="border-secondary">
                     <div class="d-flex gap-2">
-                        <input type="text" class="form-control login-input" id="addNewPlaylistName" placeholder="Nuova playlist">
-                        <button type="button" class="btn btn-spotify text-nowrap" id="addCreatePlaylistBtn">Crea e aggiungi</button>
+                        <input type="text" class="form-control login-input" id="addNewPlaylistName"
+                            placeholder="Nuova playlist">
+                        <button type="button" class="btn btn-spotify text-nowrap" id="addCreatePlaylistBtn">Crea e
+                            aggiungi</button>
                     </div>
                 </div>
             </div>
@@ -275,7 +294,8 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-white-50 small mb-3">Scegli una palette di colori. La scelta resta salvata anche dopo un refresh della pagina.</p>
+                    <p class="text-white-50 small mb-3">Scegli una palette di colori. La scelta resta salvata anche dopo
+                        un refresh della pagina.</p>
                     <!-- Popolata via JS da renderThemeSwatches() in assets/js/theme.js -->
                     <div class="theme-swatch-grid" id="themeSwatchGrid"></div>
                 </div>
@@ -296,13 +316,16 @@
                 </div>
                 <div class="modal-body">
                     <div class="share-buttons">
-                        <a id="shareWhatsApp" href="#" target="_blank" rel="noopener" class="share-btn share-btn-whatsapp">
+                        <a id="shareWhatsApp" href="#" target="_blank" rel="noopener"
+                            class="share-btn share-btn-whatsapp">
                             <i class="bi bi-whatsapp"></i><span>WhatsApp</span>
                         </a>
-                        <a id="shareTelegram" href="#" target="_blank" rel="noopener" class="share-btn share-btn-telegram">
+                        <a id="shareTelegram" href="#" target="_blank" rel="noopener"
+                            class="share-btn share-btn-telegram">
                             <i class="bi bi-telegram"></i><span>Telegram</span>
                         </a>
-                        <a id="shareTwitter" href="#" target="_blank" rel="noopener" class="share-btn share-btn-twitter">
+                        <a id="shareTwitter" href="#" target="_blank" rel="noopener"
+                            class="share-btn share-btn-twitter">
                             <i class="bi bi-twitter-x"></i><span>X / Twitter</span>
                         </a>
                         <button id="shareCopyBtn" class="share-btn share-btn-copy">
@@ -322,4 +345,5 @@
     <script src="assets/js/app.js"></script>
     <script src="assets/js/liked.js"></script>
 </body>
+
 </html>
