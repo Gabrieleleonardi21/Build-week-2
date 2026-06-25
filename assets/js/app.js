@@ -664,9 +664,8 @@ function renderUserPlaylist(container, playlistId) {
 
   renameBtn.addEventListener("click", () => {
     document.getElementById("renamePlaylistInput").value = playlist.name;
-    const modal = bootstrap.Modal.getOrCreateInstance(
-      document.getElementById("renamePlaylistModal"),
-    );
+    const modalEl = document.getElementById("renamePlaylistModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     const confirmBtn = document.getElementById("confirmRenameBtn");
     const handler = () => {
       const newName = document
@@ -682,6 +681,14 @@ function renderUserPlaylist(container, playlistId) {
       confirmBtn.removeEventListener("click", handler);
     };
     confirmBtn.addEventListener("click", handler);
+    // Se la modale viene chiusa senza confermare (ESC, backdrop, X), stacca
+    // comunque il handler: altrimenti si accumula e a una conferma successiva
+    // rinominerebbe più playlist insieme.
+    modalEl.addEventListener(
+      "hidden.bs.modal",
+      () => confirmBtn.removeEventListener("click", handler),
+      { once: true },
+    );
     modal.show();
   });
 
@@ -1685,18 +1692,8 @@ function createPlaylist() {
   document.getElementById("newPlaylistName").value = "";
   bootstrap.Modal.getInstance(document.getElementById("playlistModal")).hide();
   saveUserPlaylists();
-  renderUserPlaylists();
-}
-
-function openRenamePlaylist(id, currentName) {
-  _renamePlaylistId = id;
-  document.getElementById("newPlaylistName").value = currentName;
-  document.querySelector("#playlistModal .modal-title").textContent =
-    "Rinomina playlist";
-  document.getElementById("confirmPlaylistBtn").textContent = "Rinomina";
-  bootstrap.Modal.getOrCreateInstance(
-    document.getElementById("playlistModal"),
-  ).show();
+  renderUserPlaylists(); // aggiorna la sidebar
+  refreshCurrentPage(); // ri-renderizza il contenuto (es. sezione "Le tue playlist" in home)
 }
 
 function renderUserPlaylists() {
