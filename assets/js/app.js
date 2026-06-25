@@ -195,6 +195,13 @@ function navigateTo(page, pushHistory = true) {
     return;
   }
 
+  // Le card di brano singolo (preferiti in home) non sono pagine: riproducono
+  // il brano e basta, senza navigare né aggiungere voci alla cronologia.
+  if (page.startsWith("track-")) {
+    quickPlay(page);
+    return;
+  }
+
   // Sub-pagine (album, genre, playlist, profile): renderizzate nel contenuto attuale
   if (pushHistory)
     history.pushState({ page }, "", "#" + encodeURIComponent(page));
@@ -923,8 +930,20 @@ async function quickPlay(page) {
     const id = page.slice(6);
     const { tracks } = await cached("album_" + id, () => itunesGetAlbum(id));
     playTracksList(tracks.map(normalizeTrack).filter(Boolean));
+  } else if (page.startsWith("userplaylist-")) {
+    // Playlist utente (card "Le tue playlist"): riproduce i brani salvati
+    const playlist = state.userPlaylists.find((p) => p.id === page.slice(13));
+    if (playlist) playTracksList(playlist.tracks);
   } else if (page.startsWith("playlist-")) {
     await playPlaylistById(page.slice(9));
+  } else if (page === "recent-tracks") {
+    // Card "Ascoltati di recente": riproduce la lista dei brani recenti
+    playTracksList(state.recentTracks);
+  } else if (page.startsWith("track-")) {
+    // Brano singolo (card "I tuoi brani preferiti"): riproduce quel brano
+    const id = page.slice(6);
+    const track = state.likedTracks.get(id) || _trackRegistry.get(id);
+    if (track) playTracksList([track]);
   }
 }
 
