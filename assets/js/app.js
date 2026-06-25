@@ -285,11 +285,11 @@ function setupNavigation() {
     .addEventListener("click", () => navigateTo("profile"));
 
   document
-  .getElementById("favoriteArtistsBtn")
-  ?.addEventListener("click", (e) => {
-    e.preventDefault();
-    navigateTo("favorite-artists");
-  });
+    .getElementById("favoriteArtistsBtn")
+    ?.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigateTo("favorite-artists");
+    });
 
   document
     .getElementById("createPlaylistBtn")
@@ -362,7 +362,7 @@ async function showPage(page) {
       await renderGenre(content, page.slice(6));
     else if (page.startsWith("artist-"))
       await renderArtist(content, page.slice(7));
-    else if (page==="favorite-artists")
+    else if (page === "favorite-artists")
       renderFavoriteArtists(content);
   } catch (e) {
     showRenderError(content, e);
@@ -527,10 +527,10 @@ async function renderArtist(container, artistId) {
   append(meta, make("span", "", artist.primaryGenreName || ""));
   const followBtn = make(
     "button",
-    state.favoriteArtists.has(Number(artistId))
+    state.favoriteArtists.has(artist.artistId)
       ? "btn btn-outline-light mt-3"
       : "btn btn-success mt-3",
-    state.favoriteArtists.has(Number(artistId))
+    state.favoriteArtists.has(artist.artistId)
       ? "Seguito"
       : "Segui"
   );
@@ -548,35 +548,42 @@ async function renderArtist(container, artistId) {
     .forEach((a) =>
       albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
     );
-  const header = makePlaylistHeader(null,"Artista",artist.artistName,meta);
+  const header = makePlaylistHeader(null, "Artista", artist.artistName, meta);
   header.append(followBtn);
   const nodes = [header];
+  if (albumGrid.childElementCount > 0) {
+    nodes.push(
+      make("h2", "section-title", "Album"),
+      albumGrid
+    );
+  }
+  container.replaceChildren(...nodes);
 }
 
 
 function renderFavoriteArtists(container) {
   const artists = [...state.favoriteArtists.values()];
-  const title = make("h1","greeting-title","Artisti preferiti"
+  const title = make("h1", "greeting-title", "Artisti preferiti"
   );
   if (artists.length === 0) {
-    container.replaceChildren(title,make("p","text-secondary mt-4","Non segui ancora nessun artista."
-      )
+    container.replaceChildren(title, make("p", "text-secondary mt-4", "Non segui ancora nessun artista."
+    )
     );
     return;
-    }  
-    const grid = make("div", "card-grid");
-    artists.forEach(artist => {
-    const card = make("div","album-card");
+  }
+  const grid = make("div", "card-grid");
+  artists.forEach(artist => {
+    const card = make("div", "album-card");
     card.addEventListener("click", () => {
       navigateTo("artist-" + artist.artistId);
     });
 
-    append(card,make("div","album-title",artist.artistName
-      ),make("div","album-description",artist.genre || "")
+    append(card, make("div", "album-title", artist.artistName
+    ), make("div", "album-description", artist.genre || "")
     );
     grid.append(card);
   });
-  container.replaceChildren(title,grid);
+  container.replaceChildren(title, grid);
 }
 
 async function renderPlaylist(container, playlistId) {
