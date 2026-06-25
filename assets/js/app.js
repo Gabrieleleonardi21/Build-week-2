@@ -18,11 +18,25 @@ const state = {
   isRepeat: false,
   volume: 0.7,
   likedTracks: new Map(), // Map<id, TrackObject> — persistito in localStorage
+  favoriteArtists: new Map(), //Segui i tuoi artisti preferiti
   userPlaylists: [], // [{ id, name, tracks: [] }] — persistito in localStorage
   recentTracks: [], //Salva i recenti in localStorage e li mostra in Home
   currentPage: null, // sub-pagina attiva (album-123, genre-Pop, profile, ecc.) — null = pagina default
   lastSearchQuery: "", // ultima query di ricerca, ripristinata al refresh della pagina search
+  sessionArtistStats: {}, // statistiche di ascolto per il Wrapped (sessione corrente)
 };
+
+// Recupera le statistiche salvate al caricamento della pagina
+const savedStats = localStorage.getItem('wrapped_stats');
+if (savedStats) {
+  state.sessionArtistStats = JSON.parse(savedStats);
+}
+
+// Funzione helper per ottenere gli artisti più ascoltati ordinati
+function getTopArtists() {
+  return Object.entries(state.sessionArtistStats)
+    .sort((a, b) => b[1] - a[1]);
+}
 
 // Elemento audio HTML5 per le anteprime 30s
 const audio = document.getElementById("audioPlayer");
@@ -38,7 +52,6 @@ let pipEls = null;
 let _trackDetailTimer = null;
 
 //
-
 
 // Cache per le risposte API — evita chiamate duplicate e fa da fallback
 // quando l'API iTunes è irraggiungibile o limita le richieste (HTTP 403).
@@ -110,11 +123,14 @@ const _MAIN_PAGES = {
 function loadPersistedData() {
   const liked = JSON.parse(localStorage.getItem("liked_tracks") || "[]");
   state.likedTracks = new Map(liked);
+  const artists = JSON.parse(
+    localStorage.getItem("favorite_artists") || "[]");
+  state.favoriteArtists = new Map(artists);
   state.userPlaylists = JSON.parse(
     localStorage.getItem("user_playlists") || "[]",
   );
   state.recentTracks = JSON.parse(
-    localStorage.getItem("recent_tracks") || "[]"
+    localStorage.getItem("recent_tracks") || "[]",
   );
   state.profilePhoto = localStorage.getItem("profile_photo") || null;
   state.displayName = localStorage.getItem("display_name");
@@ -124,6 +140,9 @@ function loadPersistedData() {
     localStorage.setItem("profile_join_date", new Date().toISOString());
   }
   state.joinDate = localStorage.getItem("profile_join_date");
+  // Ripristina il volume dell'ultima sessione, se salvato
+  const savedVolume = localStorage.getItem("player_volume");
+  if (savedVolume !== null) state.volume = parseFloat(savedVolume);
 }
 
 function saveLikedTracks() {
@@ -133,27 +152,40 @@ function saveLikedTracks() {
   );
 }
 
+function saveFavoriteArtists() {
+  localStorage.setItem(
+    "favorite_artists",
+    JSON.stringify([...state.favoriteArtists.entries()])
+  );
+}
+
 function saveUserPlaylists() {
   localStorage.setItem("user_playlists", JSON.stringify(state.userPlaylists));
 }
 
 function saveRecentTracks() {
-  localStorage.setItem(
-    "recent_tracks",
-    JSON.stringify(state.recentTracks)
-  );
+  localStorage.setItem("recent_tracks", JSON.stringify(state.recentTracks));
 }
 
 function addRecentTrack(track) {
   if (!track) return;
-  state.recentTracks = state.recentTracks.filter(
-    t => t.id !== track.id
-  );
+  state.recentTracks = state.recentTracks.filter((t) => t.id !== track.id);
   state.recentTracks.unshift(track);
   if (state.recentTracks.length > 10) {
     state.recentTracks = state.recentTracks.slice(0, 10);
   }
   saveRecentTracks();
+}
+
+function registraAscolto(track) {
+  if (!track || !track.artist) return;
+
+  const artist = track.artist;
+  state.sessionArtistStats[artist] = (state.sessionArtistStats[artist] || 0) + 1;
+  
+  localStorage.setItem('wrapped_stats', JSON.stringify(state.sessionArtistStats));
+  
+  console.log(`Ascolto registrato: ${artist} - Totale: ${state.sessionArtistStats[artist]}`);
 }
 
 // ============================================
@@ -165,6 +197,7 @@ function initShell(pageRenderer) {
   updateUserMenu();
   setupPlayer();
   setupPip();
+  setupSleepTimer();
   setupNavigation();
   setupThemeSwitcher(); // bottone tavolozza + modale (assets/js/theme.js)
   renderUserPlaylists();
@@ -198,6 +231,13 @@ function navigateTo(page, pushHistory = true) {
   // Pagine principali: naviga tramite href, il browser ricarica la pagina corretta
   if (_MAIN_PAGES[page]) {
     location.href = _MAIN_PAGES[page];
+    return;
+  }
+
+  // Le card di brano singolo (preferiti in home) non sono pagine: riproducono
+  // il brano e basta, senza navigare né aggiungere voci alla cronologia.
+  if (page.startsWith("track-")) {
+    quickPlay(page);
     return;
   }
 
@@ -277,6 +317,13 @@ function setupNavigation() {
     .addEventListener("click", () => navigateTo("profile"));
 
   document
+    .getElementById("favoriteArtistsBtn")
+    ?.addEventListener("click", (e) => {
+      e.preventDefault();
+      navigateTo("favorite-artists");
+    });
+
+  document
     .getElementById("createPlaylistBtn")
     .addEventListener("click", (e) => {
       e.preventDefault();
@@ -342,12 +389,13 @@ async function showPage(page) {
       await renderPlaylist(content, page.slice(9));
     else if (page.startsWith("userplaylist-"))
       renderUserPlaylist(content, page.slice(13));
-    else if (page === "recent-tracks")
-      renderRecentTracks(content);
+    else if (page === "recent-tracks") renderRecentTracks(content);
     else if (page.startsWith("genre-"))
       await renderGenre(content, page.slice(6));
     else if (page.startsWith("artist-"))
       await renderArtist(content, page.slice(7));
+    else if (page === "favorite-artists")
+      renderFavoriteArtists(content);
   } catch (e) {
     showRenderError(content, e);
   }
@@ -468,7 +516,6 @@ async function renderAlbum(container, albumId) {
 
   const norm = normalizeAlbum(album);
   const tracks = rawTracks.map(normalizeTrack).filter(Boolean);
-  tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   const meta = make("div", "playlist-meta");
   append(meta, make("strong", "", norm.artist), ` • ${tracks.length} brani`);
@@ -489,6 +536,15 @@ async function renderAlbum(container, albumId) {
 }
 
 async function renderArtist(container, artistId) {
+  if (artistId === CUSTOM_TRACK_DARIO.artistId) {
+    const meta = make("div", "playlist-meta", "Artista indipendente");
+    container.replaceChildren(
+      makePlaylistHeader(null, "Artista", CUSTOM_TRACK_DARIO.artistName, meta),
+      make("h2", "section-title", "Brani"),
+      renderTrackList([normalizeTrack(CUSTOM_TRACK_DARIO)]),
+    );
+    return;
+  }
   const { artist, albums } = await cached("artist_" + artistId, () =>
     itunesGetArtist(artistId),
   );
@@ -501,19 +557,65 @@ async function renderArtist(container, artistId) {
 
   const meta = make("div", "playlist-meta");
   append(meta, make("span", "", artist.primaryGenreName || ""));
-
-  const albumGrid = make("div", "card-grid");
-  albums.map(normalizeAlbum).filter(Boolean).forEach((a) =>
-    albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
+  const followBtn = make(
+    "button",
+    state.favoriteArtists.has(artist.artistId)
+      ? "btn btn-outline-light mt-3"
+      : "btn btn-success mt-3",
+    state.favoriteArtists.has(artist.artistId)
+      ? "Seguito"
+      : "Segui"
   );
-
-  const nodes = [
-    makePlaylistHeader(null, "Artista", artist.artistName, meta),
-  ];
+  followBtn.addEventListener("click", () => {
+    toggleFollowArtist({
+      artistId: artist.artistId,
+      artistName: artist.artistName,
+      genre: artist.primaryGenreName || ""
+    });
+  });
+  const albumGrid = make("div", "card-grid");
+  albums
+    .map(normalizeAlbum)
+    .filter(Boolean)
+    .forEach((a) =>
+      albumGrid.append(makeCard(a.cover, a.title, a.artist, "album-" + a.id)),
+    );
+  const header = makePlaylistHeader(null, "Artista", artist.artistName, meta);
+  header.append(followBtn);
+  const nodes = [header];
   if (albumGrid.childElementCount > 0) {
-    nodes.push(make("h2", "section-title", "Album"), albumGrid);
+    nodes.push(
+      make("h2", "section-title", "Album"),
+      albumGrid
+    );
   }
   container.replaceChildren(...nodes);
+}
+
+
+function renderFavoriteArtists(container) {
+  const artists = [...state.favoriteArtists.values()];
+  const title = make("h1", "greeting-title", "Artisti preferiti"
+  );
+  if (artists.length === 0) {
+    container.replaceChildren(title, make("p", "text-secondary mt-4", "Non segui ancora nessun artista."
+    )
+    );
+    return;
+  }
+  const grid = make("div", "card-grid");
+  artists.forEach(artist => {
+    const card = make("div", "album-card");
+    card.addEventListener("click", () => {
+      navigateTo("artist-" + artist.artistId);
+    });
+
+    append(card, make("div", "album-title", artist.artistName
+    ), make("div", "album-description", artist.genre || "")
+    );
+    grid.append(card);
+  });
+  container.replaceChildren(title, grid);
 }
 
 async function renderPlaylist(container, playlistId) {
@@ -530,7 +632,6 @@ async function renderPlaylist(container, playlistId) {
     cached("vptracks_" + playlistId, () => itunesGetPlaylistTracks(playlistId)),
   ]);
   const tracks = rawTracks.map(normalizeTrack).filter(Boolean);
-  tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   const playBtn = make("button", "btn-play-large");
   playBtn.addEventListener("click", () => playTracksList(tracks));
@@ -554,7 +655,6 @@ function renderUserPlaylist(container, playlistId) {
   if (!playlist) return;
 
   const cover = "assets/img/ppp.jpg";
-  playlist.tracks.forEach((t) => _trackRegistry.set(t.id, t));
 
   // Le righe in una playlist utente mostrano anche il bottone "rimuovi"
   let tracksEl;
@@ -586,13 +686,16 @@ function renderUserPlaylist(container, playlistId) {
   const renameBtn = make("button", "btn-icon");
   renameBtn.style.fontSize = "32px";
   renameBtn.title = "Rinomina playlist";
-  
+
   renameBtn.addEventListener("click", () => {
     document.getElementById("renamePlaylistInput").value = playlist.name;
-    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById("renamePlaylistModal"));
+    const modalEl = document.getElementById("renamePlaylistModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     const confirmBtn = document.getElementById("confirmRenameBtn");
     const handler = () => {
-      const newName = document.getElementById("renamePlaylistInput").value.trim();
+      const newName = document
+        .getElementById("renamePlaylistInput")
+        .value.trim();
       if (newName) {
         playlist.name = newName;
         saveUserPlaylists();
@@ -603,10 +706,16 @@ function renderUserPlaylist(container, playlistId) {
       confirmBtn.removeEventListener("click", handler);
     };
     confirmBtn.addEventListener("click", handler);
+    // Se la modale viene chiusa senza confermare (ESC, backdrop, X), stacca
+    // comunque il handler: altrimenti si accumula e a una conferma successiva
+    // rinominerebbe più playlist insieme.
+    modalEl.addEventListener(
+      "hidden.bs.modal",
+      () => confirmBtn.removeEventListener("click", handler),
+      { once: true },
+    );
     modal.show();
   });
-  
-
 
   renameBtn.append(make("i", "bi bi-pencil"));
 
@@ -619,39 +728,20 @@ function renderUserPlaylist(container, playlistId) {
 
 function renderRecentTracks(container) {
   const tracks = state.recentTracks;
-  tracks.forEach(t =>
-    _trackRegistry.set(t.id, t)
-  );
-  const playBtn = make("button", "btn-play-large");playBtn.append(
-    make("i", "bi bi-play-fill")
-  );
-  playBtn.addEventListener(
-    "click",
-    () => playTracksList(tracks)
-  );
-  const meta = make(
-    "div",
-    "playlist-meta",
-    `${tracks.length} brani`
-  );
+  const playBtn = make("button", "btn-play-large");
+  playBtn.append(make("i", "bi bi-play-fill"));
+  playBtn.addEventListener("click", () => playTracksList(tracks));
+  const meta = make("div", "playlist-meta", `${tracks.length} brani`);
   container.replaceChildren(
-    makePlaylistHeader(
-      null,
-      "Playlist",
-      "Ascoltati di recente",
-      meta
-    ),
-    append(
-      make("div", "playlist-actions-row"),
-      playBtn
-    ),
+    makePlaylistHeader(null, "Playlist", "Ascoltati di recente", meta),
+    append(make("div", "playlist-actions-row"), playBtn),
     tracks.length
       ? renderTrackList(tracks)
       : make(
-          "p",
-          "text-secondary mt-4",
-          "Non hai ancora ascoltato alcun brano."
-        )
+        "p",
+        "text-secondary mt-4",
+        "Non hai ancora ascoltato alcun brano.",
+      ),
   );
 }
 
@@ -940,8 +1030,20 @@ async function quickPlay(page) {
     const id = page.slice(6);
     const { tracks } = await cached("album_" + id, () => itunesGetAlbum(id));
     playTracksList(tracks.map(normalizeTrack).filter(Boolean));
+  } else if (page.startsWith("userplaylist-")) {
+    // Playlist utente (card "Le tue playlist"): riproduce i brani salvati
+    const playlist = state.userPlaylists.find((p) => p.id === page.slice(13));
+    if (playlist) playTracksList(playlist.tracks);
   } else if (page.startsWith("playlist-")) {
     await playPlaylistById(page.slice(9));
+  } else if (page === "recent-tracks") {
+    // Card "Ascoltati di recente": riproduce la lista dei brani recenti
+    playTracksList(state.recentTracks);
+  } else if (page.startsWith("track-")) {
+    // Brano singolo (card "I tuoi brani preferiti"): riproduce quel brano
+    const id = page.slice(6);
+    const track = state.likedTracks.get(id) || _trackRegistry.get(id);
+    if (track) playTracksList([track]);
   }
 }
 
@@ -1015,7 +1117,7 @@ function makeTrackRow(track, index, ids, showAlbumCol, options = {}) {
   moreBtn.title = "Altre opzioni";
   moreBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    openTrackActionsModal(track.id, options);
+    openTrackActionsModal(track.id, ids, options);
   });
   moreBtn.append(make("i", "bi bi-three-dots"));
   actions.append(moreBtn);
@@ -1107,15 +1209,35 @@ function setupPlayer() {
     if (state.currentTrack) toggleLike(state.currentTrack.id);
   });
 
-  // Seek sulla progress bar
-  document
-    .getElementById("progressContainer")
-    .addEventListener("click", (e) => {
-      if (!state.currentTrack || !audio.duration) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      audio.currentTime =
-        ((e.clientX - rect.left) / rect.width) * audio.duration;
-    });
+  // Seek sulla progress bar + anteprima al passaggio del mouse col timestamp
+  const progressContainer = document.getElementById("progressContainer");
+  const progressHover = document.getElementById("progressHover");
+  const progressTooltip = document.getElementById("progressTooltip");
+
+  progressContainer.addEventListener("mousemove", (e) => {
+    if (!state.currentTrack || !audio.duration) return;
+    const rect = progressContainer.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+
+    progressHover.style.width = pct * 100 + "%";
+    progressTooltip.style.left = pct * 100 + "%";
+    progressTooltip.textContent = formatDuration(
+      Math.floor(pct * audio.duration),
+    );
+    progressTooltip.classList.add("visible");
+  });
+
+  progressContainer.addEventListener("mouseleave", () => {
+    progressHover.style.width = "0%";
+    progressTooltip.classList.remove("visible");
+  });
+
+  progressContainer.addEventListener("click", (e) => {
+    if (!state.currentTrack || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    audio.currentTime =
+      ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
 
   // Controllo volume (cliccabile e draggabile)
   const volumeContainer = document.getElementById("volumeContainer");
@@ -1131,6 +1253,7 @@ function setupPlayer() {
       state.volume * 100 + "%";
     updateVolumeIcon();
     refreshPipUI();
+    localStorage.setItem("player_volume", state.volume); // persiste il volume per la sessione successiva
   };
 
   const volumeHover = document.getElementById("volumeHover");
@@ -1167,6 +1290,7 @@ function setupPlayer() {
       state.volume * 100 + "%";
     updateVolumeIcon();
     refreshPipUI();
+    localStorage.setItem("player_volume", state.volume); // persiste anche il mute/unmute
   });
 
   // Aggiorna la barra di avanzamento in tempo reale
@@ -1194,6 +1318,9 @@ function setupPlayer() {
   });
 
   audio.volume = state.volume;
+  // Aggiorna la barra e l'icona in base al volume ripristinato dal localStorage
+  document.getElementById("volumeFill").style.width = state.volume * 100 + "%";
+  updateVolumeIcon();
 }
 
 // ============================================
@@ -1208,6 +1335,105 @@ function isPipSupported() {
 function setupPip() {
   if (!isPipSupported()) return; // Firefox/Safari: nessun PiP, nessun errore
   document.addEventListener("visibilitychange", handlePipVisibilityChange);
+}
+
+// ============================================
+// SLEEP TIMER — ferma la riproduzione dopo N minuti
+// Il timer sopravvive alla navigazione tra le pagine perché lo stato
+// è in queste variabili di modulo, non nel DOM.
+// ============================================
+
+let _sleepTimerTimeout = null;   // setTimeout che spegne la musica
+let _sleepTimerEndTime = null;   // timestamp Unix (ms) di quando si fermerà
+let _sleepTimerIntervalId = null; // setInterval che aggiorna il conto alla rovescia sul pulsante
+
+function setupSleepTimer() {
+  const btn = document.getElementById("sleepTimerBtn");
+  const menu = document.getElementById("sleepTimerMenu");
+  const cancelBtn = document.getElementById("sleepTimerCancel");
+  if (!btn || !menu) return;
+
+  // Apre/chiude il menu al click sul pulsante luna
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation(); // evita che il listener sul document lo richiuda subito
+    menu.classList.toggle("open");
+  });
+
+  // Chiude il menu cliccando fuori
+  document.addEventListener("click", () => menu.classList.remove("open"));
+  // Impedisce che un click sul menu stesso lo chiuda (event bubbling)
+  menu.addEventListener("click", (e) => e.stopPropagation());
+
+  // Opzioni 15 / 30 / 60 min — ogni button ha data-minutes con il valore
+  menu.querySelectorAll(".sleep-timer-option[data-minutes]").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      startSleepTimer(parseInt(opt.dataset.minutes, 10));
+      menu.classList.remove("open");
+    });
+  });
+
+  // Bottone "Annulla timer"
+  cancelBtn.addEventListener("click", () => {
+    cancelSleepTimer();
+    menu.classList.remove("open");
+  });
+
+  // Applica lo stato iniziale al pulsante (per coerenza, al load è sempre spento)
+  _updateSleepTimerUI();
+}
+
+// Avvia il timer: cancella quello precedente se c'è, imposta timeout e intervallo di refresh UI
+function startSleepTimer(minutes) {
+  cancelSleepTimer(); // reset se era già attivo un timer precedente
+  _sleepTimerEndTime = Date.now() + minutes * 60 * 1000;
+
+  // Quando scade: mette in pausa e pulisce lo stato
+  _sleepTimerTimeout = setTimeout(() => {
+    audio.pause();
+    state.isPlaying = false;
+    updatePlayButton();
+    cancelSleepTimer();
+    showToast("Sleep timer: riproduzione fermata");
+  }, minutes * 60 * 1000);
+
+  // Aggiorna il conto alla rovescia sul pulsante ogni 30 secondi
+  _sleepTimerIntervalId = setInterval(_updateSleepTimerUI, 30000);
+  _updateSleepTimerUI();
+  showToast(`Sleep timer: stop tra ${minutes} min`);
+}
+
+// Annulla il timer e ripristina l'icona/etichetta del pulsante
+function cancelSleepTimer() {
+  clearTimeout(_sleepTimerTimeout);
+  clearInterval(_sleepTimerIntervalId);
+  _sleepTimerTimeout = null;
+  _sleepTimerEndTime = null;
+  _sleepTimerIntervalId = null;
+  _updateSleepTimerUI();
+}
+
+// Sincronizza l'aspetto del pulsante con lo stato del timer:
+// - timer attivo → icona piena verde + minuti residui
+// - timer spento → icona vuota grigia, "Annulla" disabilitato
+function _updateSleepTimerUI() {
+  const btn = document.getElementById("sleepTimerBtn");
+  const label = document.getElementById("sleepTimerLabel");
+  const cancelBtn = document.getElementById("sleepTimerCancel");
+  if (!btn) return;
+
+  const icon = btn.querySelector("i");
+  if (_sleepTimerEndTime) {
+    const remaining = Math.max(0, Math.ceil((_sleepTimerEndTime - Date.now()) / 60000));
+    btn.classList.add("active");
+    icon.className = "bi bi-moon-fill";
+    if (label) label.textContent = ` ${remaining}m`;
+    if (cancelBtn) cancelBtn.disabled = false;
+  } else {
+    btn.classList.remove("active");
+    icon.className = "bi bi-moon";
+    if (label) label.textContent = "";
+    if (cancelBtn) cancelBtn.disabled = true;
+  }
 }
 
 async function handlePipVisibilityChange() {
@@ -1415,6 +1641,7 @@ function refreshPipUI() {
 
 function playTrack(track) {
   if (!track) return;
+  registraAscolto(track);
   state.currentTrack = track;
   addRecentTrack(track);
   state.isPlaying = false;
@@ -1442,7 +1669,10 @@ function playTrack(track) {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {
+        state.isPlaying = false;
+        updatePlayButton();
+      });
   } else {
     // Nessuna anteprima: mostra info ma non riproduce
     audio.src = "";
@@ -1484,7 +1714,10 @@ function togglePlay() {
         updatePlayButton();
         refreshCurrentPage();
       })
-      .catch(() => { });
+      .catch(() => {
+        state.isPlaying = false;
+        updatePlayButton();
+      });
     return;
   }
   updatePlayButton();
@@ -1558,6 +1791,19 @@ function toggleLike(trackId) {
   refreshCurrentPage();
 }
 
+function toggleFollowArtist(artist) {
+  if (!artist || !artist.artistId) return;
+  if (state.favoriteArtists.has(artist.artistId)) {
+    state.favoriteArtists.delete(artist.artistId);
+  } else {
+    state.favoriteArtists.set(artist.artistId, artist);
+  }
+  saveFavoriteArtists();
+  if (state.currentPage?.startsWith("artist-")) {
+    showPage(state.currentPage);
+  }
+}
+
 function updateLikeBtn() {
   if (!state.currentTrack) return;
   const liked = state.likedTracks.has(state.currentTrack.id);
@@ -1577,15 +1823,8 @@ function createPlaylist() {
   document.getElementById("newPlaylistName").value = "";
   bootstrap.Modal.getInstance(document.getElementById("playlistModal")).hide();
   saveUserPlaylists();
-  renderUserPlaylists();
-}
-
-function openRenamePlaylist(id, currentName) {
-  _renamePlaylistId = id;
-  document.getElementById("newPlaylistName").value = currentName;
-  document.querySelector("#playlistModal .modal-title").textContent = "Rinomina playlist";
-  document.getElementById("confirmPlaylistBtn").textContent = "Rinomina";
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("playlistModal")).show();
+  renderUserPlaylists(); // aggiorna la sidebar
+  refreshCurrentPage(); // ri-renderizza il contenuto (es. sezione "Le tue playlist" in home)
 }
 
 function renderUserPlaylists() {
@@ -1788,7 +2027,7 @@ function _updateTrackDetailLike(trackId) {
 // ============================================
 // MENU AZIONI BRANO (mobile, bottone "tre puntini")
 // ============================================
-function openTrackActionsModal(trackId, options = {}) {
+function openTrackActionsModal(trackId, ids = [], options = {}) {
   const track = _trackRegistry.get(trackId);
   const title = document.getElementById("trackActionsTitle");
   title.textContent = "Opzioni brano";
@@ -1797,6 +2036,17 @@ function openTrackActionsModal(trackId, options = {}) {
   const modalEl = document.getElementById("trackActionsModal");
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   const items = [];
+
+  // Riproduci — su mobile (≤480px) il click/doppio-click sulla riga non riproduce,
+  // quindi è l'unico modo per avviare un singolo brano dalla tracklist
+  const playItem = make("button", "add-playlist-item");
+  playItem.append(make("span", "", "Riproduci"));
+  playItem.append(make("i", "bi bi-play-fill"));
+  playItem.addEventListener("click", () => {
+    playTrackInList(trackId, ids);
+    modal.hide();
+  });
+  items.push(playItem);
 
   // Aggiungi a una playlist — apre il modale dedicato dopo la chiusura di questo
   const addItem = make("button", "add-playlist-item");
@@ -1945,19 +2195,24 @@ function _confettiLoop() {
     }
   }
 
-  requestAnimationFrame(_confettiLoop);
+  // Continua a 60fps solo finché c'è qualcosa da animare: a riposo il loop si
+  // ferma del tutto, evitando di consumare CPU/batteria su una pagina ferma.
+  if (_confettiRunning || _confettiParticles.length > 0) {
+    requestAnimationFrame(_confettiLoop);
+  }
 }
 
 function _startConfetti() {
+  if (_confettiRunning) return; // evita avvii sovrapposti
   _confettiRunning = true;
   setTimeout(() => {
     _confettiRunning = false;
   }, 5000);
+  _confettiLoop(); // avvia il loop solo ora, non al caricamento della pagina
 }
 
 _resizeConfetti();
 window.addEventListener("resize", _resizeConfetti);
-_confettiLoop();
 
 if (sessionStorage.getItem("just_logged_in")) {
   sessionStorage.removeItem("just_logged_in");
@@ -2005,3 +2260,69 @@ function _openShareModal(track, url, text) {
 
   new bootstrap.Modal(document.getElementById("shareModal")).show();
 }
+
+// =========================================================
+// LOGICA WRAPPED 
+// =========================================================
+
+function getTopArtists() {
+  if (!state.sessionArtistStats) return [];
+  return Object.entries(state.sessionArtistStats).sort((a, b) => b[1] - a[1]);
+}
+
+function getArtistImage(artistName) {
+  const track = state.recentTracks.find(t => t.artist === artistName);
+  if (track && track.cover) return track.cover;
+
+  const registryArray = Array.from(_trackRegistry.values());
+  const foundInRegistry = registryArray.find(t => t.artist === artistName);
+  return (foundInRegistry && foundInRegistry.cover) ? foundInRegistry.cover : 'assets/default-cover.jpg';
+}
+
+function renderWrappedView(container) {
+  const topArtists = getTopArtists();
+  container.replaceChildren();
+
+  container.append(make('h2', 'section-title', 'Il tuo Wrapped 2026'));
+
+  if (topArtists.length === 0) {
+    container.append(make('p', 'text-secondary', 'Ascolta qualche brano per vedere le tue statistiche!'));
+    return;
+  }
+
+  const grid = make('div', 'card-grid');
+
+  topArtists.slice(0, 5).forEach(([artist, count], index) => {
+    const card = make('div', 'album-card');
+    
+    const imgUrl = getArtistImage(artist);
+    const cover = document.createElement('img');
+    cover.src = imgUrl;
+    cover.className = 'album-cover';
+
+    const rank = make('div', 'rank-placeholder', `#${index + 1}`);
+    const title = make('div', 'album-title', artist);
+    const desc = make('div', 'album-description', `${count} ascolti`);
+
+    append(card, cover, rank, title, desc);
+    grid.append(card);
+  });
+
+  container.append(grid);
+}
+
+// =========================================================
+// LISTENER PER BOTTONE WRAPPED
+// =========================================================
+
+document.addEventListener('click', (e) => {
+    if (e.target.closest('#wrappedBtn')) {
+        e.preventDefault();
+        const contentArea = document.getElementById('contentArea');
+        if (contentArea) {
+            renderWrappedView(contentArea);
+        } else {
+            console.error("Errore: #contentArea non trovato!");
+        }
+    }
+});
