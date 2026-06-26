@@ -1,0 +1,338 @@
+# Architettura del progetto — Spotify Clone
+
+Mappa di come funziona il codice: struttura, logica e responsabilità di ogni file.
+Documento di riferimento per chi lavora sul progetto.
+
+---
+
+## 1. Panoramica generale
+
+È un **clone di Spotify** che gira interamente nel browser (nessun backend).
+La musica arriva dalla **iTunes Search API** (anteprime di 30 secondi), i dati
+dell'utente (preferiti, playlist, profilo, tema) sono salvati in **localStorage**.
+
+**Architettura: MPA (Multi-Page Application)**
+Non è una SPA con un solo `index.html`: ci sono 4 pagine HTML reali. La
+navigazione tra le pagine principali ricarica davvero il file (`location.href`),
+mentre le "sotto-pagine" (album, artista, playlist, profilo…) sono renderizzate
+dinamicamente dentro la pagina corrente senza ricaricare.
+
+```
+login.html  →  home.html  ⇄  search.html  ⇄  liked.html
+                   │              │              │
+                   └─ sotto-pagine renderizzate in #contentArea ─┘
+                      (album-, artist-, genre-, playlist-,
+                       userplaylist-, profile, recent-tracks, ...)
+```
+
+---
+
+## 2. Struttura dei file
+
+```
+home.html / search.html / liked.html   ← le 3 pagine "shell" (stessa struttura)
+login.html                             ← schermata di accesso
+
+assets/js/
+  theme.js        ← temi colore (caricato per primo, in <head>)
+  data.js         ← helper condivisi (make, append, createCover, formatDuration)
+  itunes-api.js   ← chiamate API iTunes + normalizzatori + dati statici
+  app.js          ← CUORE dell'app: shell condivisa, player, navigazione, like…
+  home.js         ← renderer specifico della home
+  search.js       ← renderer specifico della ricerca
+  liked.js        ← renderer specifico dei brani preferiti
+  login.js        ← logica del form di login
+  spotify-api.js  ← (RIMOSSO) integrazione Spotify reale, non usata
+
+assets/css/
+  style.css       ← tutti gli stili, incluso il responsive (media query 768px e 480px)
+```
+
+### Ordine di caricamento degli script (in ogni pagina shell)
+
+```html
+<head>  → theme.js          (applica subito il tema salvato, evita il flash di colore)
+<body>  → bootstrap.bundle  (modali, dropdown)
+        → data.js           (helper, devono esistere prima di tutti)
+        → itunes-api.js     (API + normalizzatori)
+        → app.js            (shell condivisa)
+        → home.js / search.js / liked.js  (renderer della pagina)
+```
+
+`login.html` carica solo `theme.js`, `data.js`, `login.js` (non ha la shell).
+
+---
+
+## 3. Lo stato dell'applicazione (`app.js`)
+
+Tutto lo stato runtime vive nell'oggetto `state`:
+
+| Campo | Cosa contiene |
+|---|---|
+| `displayName`, `profilePhoto`, `bio`, `location`, `joinDate` | dati del profilo utente |
+| `currentTrack` | brano attualmente caricato nel player |
+| `currentPlaylist`, `currentIndex` | coda di riproduzione e posizione corrente |
+| `isPlaying`, `isShuffle`, `isRepeat`, `volume` | stato del player |
+| `likedTracks` | `Map<id, track>` dei brani col cuore |
+| `favoriteArtists` | `Map<artistId, artist>` degli artisti seguiti |
+| `userPlaylists` | array di playlist create dall'utente `[{id, name, tracks[]}]` |
+| `recentTracks` | ultimi 10 brani ascoltati |
+| `currentPage` | sotto-pagina attiva (`null` = pagina principale) |
+| `lastSearchQuery` | ultima ricerca, ripristinata al refresh |
+| `sessionArtistStats` | conteggio ascolti per artista (per il Wrapped) |
+
+### Persistenza (localStorage)
+
+`loadPersistedData()` legge tutto da localStorage all'avvio di ogni pagina.
+Ad ogni modifica, una funzione `save*` riscrive la chiave corrispondente:
+
+| Chiave localStorage | Salvata da |
+|---|---|
+| `liked_tracks` | `saveLikedTracks()` |
+| `favorite_artists` | `saveFavoriteArtists()` |
+| `user_playlists` | `saveUserPlaylists()` |
+| `recent_tracks` | `saveRecentTracks()` (via `addRecentTrack`) |
+| `profile_photo`, `display_name`, `profile_bio`, `profile_location`, `profile_join_date` | `saveProfile()` |
+| `player_volume` | al cambio volume |
+| `current_track` | a ogni `playTrack()` (per ripristinare la UI al cambio pagina) |
+| `wrapped_stats` | `registraAscolto()` |
+| `color_theme` | `applyTheme()` (in theme.js) |
+| `session_active` | flag di login (separato dal profilo) |
+
+I `Map` vengono serializzati come array di coppie (`[...map.entries()]`) e
+ricostruiti con `new Map(array)`.
+
+---
+
+## 4. Avvio di una pagina e rendering
+
+Ogni file di pagina (`home.js`, `search.js`, `liked.js`) fa lo stesso schema in
+`DOMContentLoaded`:
+
+```js
+1. if (!localStorage.getItem('session_active')) → redirect a login.html
+2. loadPersistedData()
+3. initShell(container => renderXXX(container))   // registra il renderer della pagina
+4. se c'è un #hash → navigateTo(hash)             // sotto-pagina richiesta via URL
+   altrimenti      → renderCurrentMainPage()       // pagina principale con spinner
+```
+
+### `initShell(pageRenderer)` — il setup condiviso (app.js)
+
+Memorizza il renderer in `window._pageRenderer` e collega tutta la shell comune
+a tutte le pagine:
+
+```
+updateUserMenu()       → nome + avatar in alto a destra
+setupPlayer()          → eventi del player audio (play, seek, volume…)
+setupPip()             → Picture-in-Picture (solo Chrome/Edge)
+setupSleepTimer()      → menu "spegni tra N minuti"
+setupNavigation()      → sidebar, back/forward, hamburger, modali
+setupThemeSwitcher()   → bottone tavolozza (theme.js)
+renderUserPlaylists()  → playlist dell'utente nella sidebar
+restorePlayerState()   → ripristina la UI del player dall'ultima sessione
+```
+
+### La pipeline di rendering
+
+- **`renderCurrentMainPage()`** — mostra lo spinner, chiama `window._pageRenderer`
+  (cioè `renderHome` / `renderSearch` / `renderLikedTracks`), gestisce gli errori
+  con un box "Riprova".
+- **`showPage(page)`** — gestisce le sotto-pagine: in base al prefisso del nome
+  chiama il renderer giusto.
+- **`refreshCurrentPage()`** — ri-renderizza la vista attuale (serve dopo un like
+  o un play, per aggiornare cuori e indicatori di riproduzione).
+
+---
+
+## 5. Navigazione (`navigateTo`, history API)
+
+`navigateTo(page, pushHistory = true)` decide cosa fare in base al nome:
+
+| Tipo di `page` | Comportamento |
+|---|---|
+| `home` / `search` / `liked` / `library` | `location.href` → ricarica il file HTML (vedi `_MAIN_PAGES`) |
+| `track-<id>` | non naviga, riproduce solo il brano (`quickPlay`) |
+| tutto il resto (`album-`, `artist-`, `genre-`, `playlist-`, `userplaylist-`, `profile`, `recent-tracks`, `favorite-artists`) | `history.pushState` + `showPage()` → renderizza dentro `#contentArea` |
+
+Le sotto-pagine usano l'**hash dell'URL** (`#album-123`): così sono linkabili e
+il pulsante back/forward del browser funziona (gestito da `popstate`).
+
+`updateActiveNav()` evidenzia la voce attiva nella sidebar.
+
+---
+
+## 6. API iTunes (`itunes-api.js`)
+
+### Chiamate via JSONP (non fetch)
+
+`_jsonp(url, params)` inserisce un `<script>` con una callback univoca. Questo
+**aggira CORS e gli ad-blocker** che bloccherebbero le richieste fetch a iTunes.
+Timeout di 10 secondi, poi rifiuta la Promise.
+
+Funzioni esposte:
+- `itunesSearch(term, entity, limit)` — ricerca brani o album
+- `itunesGetAlbum(albumId)` — album + sue tracce
+- `itunesGetArtist(artistId)` — artista + suoi album
+- `itunesGetPlaylistTracks(playlistId)` — brani di una playlist virtuale
+- `itunesGetTopPodcasts(limit)` — podcast
+
+### Normalizzatori
+
+`normalizeTrack` / `normalizeAlbum` / `normalizePodcast` convertono il formato
+grezzo di iTunes nel formato interno dell'app (oggetti con `id`, `title`,
+`artist`, `cover`, `previewUrl`, `duration`…). La cover viene portata a 600x600px
+sostituendo `100x100bb` nell'URL.
+
+### Dati statici
+
+- **`VIRTUAL_PLAYLISTS`** — playlist "finte" (Top Italia, Chill, Workout…): non
+  esistono su iTunes, il loro contenuto viene cercato al volo per `term`.
+- **`GENRES`** — generi musicali con il relativo termine di ricerca.
+- **`CUSTOM_TRACK_DARIO`** — brano locale (file MP3 in `assets/audio/`) iniettato
+  a mano nella playlist "Top Italia" e ricercabile.
+
+### Cache a 3 livelli (`cached()` in app.js)
+
+```
+1. memoria (_cache)          → istantaneo, dura la sessione
+2. localStorage entro 24h    → evita del tutto la chiamata
+3. chiamata API              → e se fallisce, ripiega sul dato salvato (anche scaduto)
+```
+
+---
+
+## 7. Il player audio (`app.js`)
+
+Usa un singolo elemento `<audio id="audioPlayer">`.
+
+| Funzione | Cosa fa |
+|---|---|
+| `playTrack(track)` | carica un brano, aggiorna la UI, salva in `recent` e `wrapped_stats`, avvia l'audio |
+| `playTracksList(list)` | imposta la coda e parte dal primo brano |
+| `playTrackInList(id, ids)` | parte da un brano specifico mantenendo la coda |
+| `togglePlay()` | play/pausa |
+| `prevTrack()` / `nextTrack()` | brano precedente/successivo (rispetta shuffle/repeat) |
+| `toggleShuffle()` / `toggleRepeat()` | modalità casuale / ripeti |
+
+`setupPlayer()` collega: seek sulla barra di avanzamento (con tooltip al passaggio
+del mouse), controllo volume cliccabile/trascinabile, e l'evento `ended` (passa al
+brano dopo, o ricomincia se `isRepeat`).
+
+⚠️ Le anteprime sono di 30s. I brani senza `previewUrl` mostrano l'icona 🔇 e non
+si riproducono.
+
+### Picture-in-Picture (PiP)
+
+Quando cambi scheda mentre la musica suona, su Chrome/Edge si apre una mini-finestra
+flottante con i controlli (Document PiP API). `buildPipDocument()` ricostruisce il
+mini-player nel documento separato della PiP, `refreshPipUI()` lo tiene sincronizzato.
+Su Firefox/Safari la funzione si disattiva silenziosamente.
+
+### Sleep timer
+
+`startSleepTimer(minuti)` imposta un `setTimeout` che mette in pausa l'audio allo
+scadere, più un `setInterval` che aggiorna i minuti residui sul pulsante luna.
+Lo stato è in variabili di modulo, quindi **non sopravvive** al cambio pagina (MPA).
+
+---
+
+## 8. Like, playlist e brani recenti
+
+- **`toggleLike(id)`** — aggiunge/rimuove dai preferiti (cerca il brano nel
+  `_trackRegistry` o nel player corrente), salva e ri-renderizza.
+- **`_trackRegistry`** — `Map` in memoria di tutti i brani disegnati a schermo;
+  serve a ritrovare l'oggetto-brano completo a partire dal solo id (per like, play,
+  aggiunta a playlist).
+- **Playlist utente** — `createPlaylist`, `addTrackToPlaylist`,
+  `removeTrackFromPlaylist`, `deletePlaylist`. Il modale "aggiungi a playlist"
+  (`openAddToPlaylistModal`) elenca le playlist e disabilita quelle che già
+  contengono il brano.
+- **Recenti** — `addRecentTrack` tiene gli ultimi 10 (dedup per id).
+
+---
+
+## 9. Tracklist e interazioni sulle righe
+
+`renderTrackList(tracks)` costruisce la tabella; `makeTrackRow()` ogni riga.
+Interazioni:
+
+- **Click singolo** (≥480px): dopo 220ms apre il modale dettaglio brano.
+- **Doppio click**: riproduce subito (annulla il timer del click singolo).
+- **Mobile (≤480px)**: il click sulla riga è disattivato; si usa il bottone
+  "tre puntini" (`openTrackActionsModal`) che offre Riproduci / Aggiungi / Like /
+  Rimuovi / Condividi.
+
+`shareTrack()` apre un modale con link a WhatsApp, Telegram, X e "copia link".
+
+---
+
+## 10. Temi colore (`theme.js`)
+
+Caricato in `<head>` **prima del CSS** così applica subito il tema salvato ed
+evita il flash di colore (FOUC). Ogni tema ridefinisce le variabili CSS di `:root`
+(`--spotify-green`, `--spotify-dark`…) come **stile inline su `<html>`**, che ha
+priorità su `style.css`. `setupThemeSwitcher()` disegna i pallini di scelta nel
+modale (richiamato da `initShell` quando il `<body>` esiste).
+
+---
+
+## 11. Login (`login.js`)
+
+Login **simulato** (nessuna password reale):
+1. Se `session_active` esiste già → auto-redirect a home.
+2. Valida lo username (se contiene `@`, controlla il formato email).
+3. Salva `display_name` + `session_active = '1'`, imposta `just_logged_in` in
+   sessionStorage (fa partire i coriandoli rosa in home) e va a `home.html`.
+
+Il **logout** (`logout()` in app.js) rimuove solo `session_active` e
+`current_track`: il profilo resta salvato per il prossimo accesso.
+
+---
+
+## 12. Wrapped (statistiche di ascolto)
+
+- `registraAscolto(track)` — chiamata a ogni `playTrack`, incrementa il contatore
+  dell'artista in `state.sessionArtistStats` e salva in `wrapped_stats`.
+- `getTopArtists()` — ordina gli artisti per numero di ascolti.
+- `renderWrappedView(container)` — mostra la top 5 artisti come card.
+- Il bottone `#wrappedBtn` nella sidebar è agganciato via **delegazione di evento**
+  sul `document`, quindi funziona ovunque si trovi.
+
+---
+
+## 13. Helper condivisi (`data.js`)
+
+| Helper | Uso |
+|---|---|
+| `make(tag, className, text)` | crea un elemento DOM. Usa `textContent` → **sicuro contro XSS** |
+| `append(parent, ...figli)` | aggiunge figli saltando `null`/`false` (comodo per i casi condizionali) |
+| `createCover(text, c1, c2)` | genera una cover SVG gradiente come fallback |
+| `formatDuration(secondi)` | formatta `mm:ss` |
+
+**Regola di sicurezza del progetto:** mai `innerHTML` con dati dinamici. Tutto il
+DOM si costruisce con `make` / `createElement` / `textContent` / `append`.
+
+---
+
+## 14. Responsive (`style.css`)
+
+Due punti di rottura principali:
+- **≤768px** — sidebar a sole icone, colonna "Album" nascosta nelle tracklist.
+- **≤480px** — la sidebar diventa una barra in alto con menu **hamburger**
+  (`.sidebar.open .sidebar-menu`); il player si compatta in basso (fisso) con
+  slider volume verticale; le righe brano usano il solo bottone "tre puntini".
+
+---
+
+## 15. Note / possibili miglioramenti
+
+Punti emersi durante la mappatura, utili per il prossimo refactor:
+
+- **`getTopArtists()` è definita due volte** in `app.js` (righe ~36 e ~2302):
+  vale solo la seconda. Conviene eliminarne una.
+- **`console.log` di debug** ancora presente in `registraAscolto()` (app.js).
+- `getArtistImage()` ripiega su `assets/default-cover.jpg`: verificare che il file
+  esista, altrimenti l'immagine si rompe.
+- Lo sleep timer non sopravvive al cambio pagina (limite intrinseco dell'MPA): se
+  si volesse persistente andrebbe salvato il timestamp di fine in localStorage.
