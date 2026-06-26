@@ -51,52 +51,36 @@ const GENRES = [
 ];
 
 // ============================================
-// CHIAMATE API — via JSONP (aggira CORS e ad-blocker)
+// CHIAMATE API — via fetch (l'API iTunes invia gli header CORS, niente JSONP)
 // ============================================
 
-// Inserisce un <script> con callback JSONP e restituisce una Promise con results[]
-function _jsonp(url, params) {
-    return new Promise((resolve, reject) => {
-        // Nome callback univoco per evitare collisioni in caso di chiamate parallele
-        const cbName = '__itcb' + Date.now() + Math.floor(Math.random() * 1e6);
-        const script = document.createElement('script');
-
-        const timer = setTimeout(() => {
-            cleanup();
-            reject(new Error('Timeout iTunes API'));
-        }, 10000);
-
-        function cleanup() {
-            clearTimeout(timer);
-            delete window[cbName];
-            script.remove();
-        }
-
-        window[cbName] = (data) => {
-            cleanup();
-            resolve(data.results || []);
-        };
-
-        params.set('callback', cbName);
-        script.src = `${url}?${params}`;
-        script.onerror = () => {
-            cleanup();
-            reject(new Error('Rete non raggiungibile'));
-        };
-        document.head.append(script);
-    });
+// Esegue la GET e restituisce una Promise con results[]
+async function _request(url, params) {
+    // AbortController per il timeout: annulla la richiesta dopo 10s
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+        const res = await fetch(`${url}?${params}`, { signal: controller.signal });
+        // res.ok è false per status HTTP fuori dal range 2xx
+        if (!res.ok) throw new Error('Rete non raggiungibile');
+        const data = await res.json();
+        return data.results || [];
+    } finally {
+        // Pulisce sempre il timer, sia in caso di successo che di errore
+        clearTimeout(timer);
+    }
 }
 
 // Cerca brani o album
 async function itunesSearch(term, entity = 'song', limit = 20) {
     const params = new URLSearchParams({ term, media: 'music', entity, limit, country: 'it' });
-    return _jsonp(`${ITUNES_API}/search`, params);
+    return _request(`${ITUNES_API}/search`, params);
 }
 
 // Recupera un album con tutte le sue tracce
 async function itunesGetAlbum(albumId) {
     const params = new URLSearchParams({ id: albumId, entity: 'song', country: 'it' });
-    const results = await _jsonp(`${ITUNES_API}/lookup`, params);
+    const results = await _request(`${ITUNES_API}/lookup`, params);
     const album = results.find(r => r.wrapperType === 'collection') || results[0];
     const tracks = results.filter(r => r.wrapperType === 'track' && r.trackId);
     return { album, tracks };
@@ -128,7 +112,7 @@ async function itunesGetTopPodcasts(limit = 8) {
 // Recupera gli album di un artista tramite il suo ID
 async function itunesGetArtist(artistId) {
     const params = new URLSearchParams({ id: artistId, entity: 'album', limit: 6, country: 'it' });
-    const results = await _jsonp(`${ITUNES_API}/lookup`, params);
+    const results = await _request(`${ITUNES_API}/lookup`, params);
     const artist = results.find(r => r.wrapperType === 'artist');
     const albums = results.filter(r => r.wrapperType === 'collection' && r.collectionId);
     return { artist, albums };
