@@ -39,10 +39,13 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 ### Home
 
 - Saluto dinamico (Buongiorno / Buon pomeriggio / Buonasera)
-- Quick-grid con 6 playlist in evidenza
 - Sezione "Playlist in evidenza" con 8 playlist virtuali
 - Sezione "Album popolari" caricata da iTunes in tempo reale
 - Pulsante play rapido su ogni card (hover)
+- Le tue playlist
+- I tuoi brani preferiti
+- Podcast più ascoltati
+- Sidebar con più opzioni
 
 ### Ricerca
 
@@ -71,12 +74,14 @@ Un'esperienza Spotify ricreata da zero: tema scuro, player funzionante e ricerca
 - Crea playlist con nome personalizzato
 - Playlist salvate in `localStorage`
 - Sidebar con accesso diretto a ogni playlist
+- Placeholder personalizzato
 
 ---
 
 ## 🧾 Struttura del progetto
 
 ```
+├── index.html           Reindirizzamento per GitHub Pages funzionante
 ├── login.html           Schermata di accesso
 ├── home.html            Home page
 ├── search.html          Ricerca e generi
